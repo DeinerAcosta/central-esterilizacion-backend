@@ -1,0 +1,396 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// SEGURIDAD Y USUARIOS
+// ==========================================
+model Usuario {
+  id                    Int      @id @default(autoincrement())
+  codigo                String   @unique
+  codigoVerificacion    String?  // ✅ Para guardar el PIN secreto de 4 dígitos
+  nombre                String
+  apellido              String
+  empresa               String
+  cargo                 String?
+  usuario               String   @unique
+  email                 String   @unique
+  password              String
+  foto                  String?
+  rol                   String   @default("Administrador")
+
+  esPropietario         Boolean  @default(false)
+  registroContable      Boolean  @default(false)
+
+  permisos              Json?
+  esPasswordProvisional Boolean  @default(true)
+  estado                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  hojasDeVidaPropias    HojaVidaInstrumento[] @relation("PropietarioInstrumento")
+  reportesCreados       Reporte[]             @relation("UsuarioReporta")
+  
+  // ✅ RELACIÓN PARA CICLO ESTERILIZACIÓN
+  ciclosGestionados     CicloEsterilizacion[] @relation("ResponsableCiclo")
+}
+
+// ==========================================
+// CONFIGURACIÓN: ESPECIALIDADES Y MARCAS
+// ==========================================
+model Especialidad {
+  id                Int                 @id @default(autoincrement())
+  codigo            String              @unique
+  nombre            String              @unique
+  estado            Boolean             @default(true)
+  subespecialidades Subespecialidad[]
+  kits              Kit[]
+  hojasDeVida       HojaVidaInstrumento[]
+}
+
+model Subespecialidad {
+  id             Int                   @id @default(autoincrement())
+  codigo         String                @unique
+  nombre         String
+  estado         Boolean               @default(true)
+  especialidadId Int
+  especialidad   Especialidad          @relation(fields: [especialidadId], references: [id])
+  tiposSub       TipoSubespecialidad[]
+  kits           Kit[]
+  hojasDeVida    HojaVidaInstrumento[]
+}
+
+model TipoSubespecialidad {
+  id                Int                   @id @default(autoincrement())
+  codigo            String                @unique
+  nombre            String
+  estado            Boolean               @default(true)
+  subespecialidadId Int
+  subespecialidad   Subespecialidad       @relation(fields: [subespecialidadId], references: [id])
+  hojasDeVida       HojaVidaInstrumento[]
+}
+
+model Marca {
+  id          Int                   @id @default(autoincrement())
+  codigo      String                @unique
+  nombre      String                @unique
+  estado      Boolean               @default(true)
+  hojasDeVida HojaVidaInstrumento[]
+}
+
+// ==========================================
+// CONFIGURACIÓN: INSUMOS Y PROVEEDORES
+// ==========================================
+model UnidadMedida {
+  id      Int                @id @default(autoincrement())
+  nombre  String             @unique
+  estado  Boolean            @default(true)
+  insumos InsumoQuirurgico[]
+}
+
+model Presentacion {
+  id      Int                @id @default(autoincrement())
+  nombre  String             @unique
+  estado  Boolean            @default(true)
+  insumos InsumoQuirurgico[]
+}
+
+model InsumoQuirurgico {
+  id                     Int          @id @default(autoincrement())
+  codigo                 String       @unique
+  nombre                 String       @unique
+  descripcion            String
+  unidadMedidaId         Int
+  unidadMedida           UnidadMedida @relation(fields: [unidadMedidaId], references: [id])
+  presentacionId         Int
+  presentacion           Presentacion @relation(fields: [presentacionId], references: [id])
+  proveedorId            Int?
+  proveedor              Proveedor?   @relation(fields: [proveedorId], references: [id])
+  requiereEsterilizacion Boolean      @default(false)
+  tipoEsterilizacion     String?
+  estado                 Boolean      @default(true)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+}
+
+model Proveedor {
+  id                    Int                   @id @default(autoincrement())
+  codigo                String                @unique
+  tipo                  String
+  nombre                String
+  nit                   String                @unique
+  pais                  String
+  ciudad                String
+  estado                Boolean               @default(true)
+  insumos               InsumoQuirurgico[]
+  hojasDeVida           HojaVidaInstrumento[]
+  reportesMantenimiento Reporte[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+}
+
+// ==========================================
+// CONFIGURACIÓN: SEDES Y QUIRÓFANOS
+// ==========================================
+model Sede {
+  id          Int                   @id @default(autoincrement())
+  nombre      String                @unique
+  pais        String                @default("Colombia")
+  ciudad      String                @default("")
+  direccion   String?               @default("")
+  responsable String?               @default("")
+  estado      Boolean               @default(true)
+
+  quirofanos  Quirofano[]
+  kits        Kit[]
+  instrumentos HojaVidaInstrumento[]
+
+  trasladosOrigen  HistorialTraslado[] @relation("SedeOrigenTraslado")
+  trasladosDestino HistorialTraslado[] @relation("SedeDestinoTraslado")
+  ciclosDestino    CicloEsterilizacion[] @relation("SedeDestinoTraslado")
+}
+
+model Quirofano {
+  id     Int     @id @default(autoincrement())
+  codigo String  @unique
+  nombre String
+  sedeId Int
+  sede   Sede    @relation(fields: [sedeId], references: [id])
+  estado Boolean @default(true)
+}
+
+// ==========================================
+// MÓDULO: TM KIT 
+// ==========================================
+model Kit {
+  id                  Int                   @id @default(autoincrement())
+  codigoKit           String                @unique
+  nombre              String
+  numeroKit           Int
+  cantidad            Int                   @default(1)
+  estado              String                @default("Habilitado")
+  especialidadId      Int
+  especialidad        Especialidad          @relation(fields: [especialidadId], references: [id])
+  subespecialidadId   Int
+  subespecialidad     Subespecialidad       @relation(fields: [subespecialidadId], references: [id])
+  tipoSubespecialidad String
+  sedeId              Int?
+  sede                Sede?                 @relation(fields: [sedeId], references: [id])
+  createdAt           DateTime              @default(now())
+
+  instrumentos        InstrumentoEnKit[]
+  hojasDeVida         HojaVidaInstrumento[]
+  historialTraslados  HistorialTraslado[]
+  
+  // ✅ RELACIÓN PARA CICLO ESTERILIZACIÓN
+  ciclos              CicloEsterilizacion[]
+}
+
+model InstrumentoEnKit {
+  id            Int                 @id @default(autoincrement())
+  kitId         Int
+  kit           Kit                 @relation(fields: [kitId], references: [id])
+  instrumentoId Int
+  instrumento   HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
+}
+
+// ==========================================
+// MÓDULO: HOJA DE VIDA DE INSTRUMENTOS 
+// ==========================================
+model HojaVidaInstrumento {
+  id                 Int                 @id @default(autoincrement())
+  codigo             String              @unique
+
+  especialidadId     Int
+  especialidad       Especialidad        @relation(fields: [especialidadId], references: [id])
+  subespecialidadId  Int
+  subespecialidad    Subespecialidad     @relation(fields: [subespecialidadId], references: [id])
+  tipoId             Int
+  tipo               TipoSubespecialidad @relation(fields: [tipoId], references: [id])
+  proveedorId        Int
+  proveedor          Proveedor           @relation(fields: [proveedorId], references: [id])
+
+  kitId              Int?
+  kit                Kit?                @relation(fields: [kitId], references: [id])
+
+  sedeId             Int?
+  sede               Sede?               @relation(fields: [sedeId], references: [id])
+
+  marcaId            Int?
+  marca              Marca?              @relation(fields: [marcaId], references: [id])
+  referencia         String?
+  ciudad             String?
+
+  nombre             String
+  fabricante         String
+  paisOrigen         String
+  numeroSerie        String              @unique
+  registroInvima     String              @unique
+
+  material           String
+  materialOtro       String?
+  esterilizacion     String
+
+  frecuenciaMantenimiento String
+  proximoMantenimiento    DateTime?
+  fechaMantenimientoRef   DateTime?
+  observacionesTecnico    String?             @db.Text
+
+  estadoActual       String              @default("P. registrar")
+  cicloEsterilizacion Int                @default(0)
+  propietarioId      Int
+  propietario        Usuario             @relation("PropietarioInstrumento", fields: [propietarioId], references: [id])
+  notasObservaciones String?             @db.Text
+
+  // CAMPOS DE REGISTRO CONTABLE
+  fechaCompra        DateTime?
+  costo              Float?
+  iva                Float?
+  numeroFactura      String?
+  vidaUtil           Float?
+
+  // ARCHIVOS ADJUNTOS
+  fotoUrl              String?
+  garantiaUrl          String?
+  registroInvimaUrl    String?
+  codigoInstrumentoUrl String?
+  facturaUrl           String?
+
+  estado             String              @default("P. registrar")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  historialTraslados HistorialTraslado[]
+  kitsAsignados      InstrumentoEnKit[]
+  reportesDano       Reporte[]
+  
+  // ✅ RELACIÓN PARA ESCANEO EN CICLO ESTERILIZACIÓN
+  escaneosCiclo      EscaneoInstrumento[]
+}
+
+// ==========================================
+// AUDITORÍA DE TRASLADOS DE INVENTARIO
+// ==========================================
+model HistorialTraslado {
+  id              Int                  @id @default(autoincrement())
+
+  instrumentoId   Int?
+  instrumento     HojaVidaInstrumento? @relation(fields: [instrumentoId], references: [id])
+
+  kitId           Int?
+  kit             Kit?                 @relation(fields: [kitId], references: [id])
+
+  sedeOrigenId    Int
+  sedeOrigen      Sede                 @relation("SedeOrigenTraslado", fields: [sedeOrigenId], references: [id])
+
+  sedeDestinoId   Int
+  sedeDestino     Sede                 @relation("SedeDestinoTraslado", fields: [sedeDestinoId], references: [id])
+
+  fechaTraslado   DateTime             @default(now())
+  fechaDevolucion DateTime
+
+  realizadoPor    String?              @default("Sistema")
+}
+
+// ==========================================
+// MÓDULO: REPORTES DE DAÑOS / MANTENIMIENTO
+// ==========================================
+model Reporte {
+  id                       Int                 @id @default(autoincrement())
+  codigo                   String              @unique
+
+  instrumentoId            Int
+  instrumento              HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
+
+  tipoDano                 String
+  evidenciaFotoUrl         String?
+  reportadoPorId           Int
+  reportadoPor             Usuario             @relation("UsuarioReporta", fields: [reportadoPorId], references: [id])
+
+  proveedorMantenimientoId Int?
+  proveedorMantenimiento   Proveedor?          @relation(fields: [proveedorMantenimientoId], references: [id])
+  descripcionMantenimiento String?             @db.Text
+
+  informeMantenimientoUrl  String?
+  destinoFinal             String?
+
+  estado                   String              @default("Pendiente")
+
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+}
+
+// ==========================================
+// ✅ MÓDULO: CICLO DE ESTERILIZACIÓN (INSTRUMENTOS QX)
+// ==========================================
+
+model CicloEsterilizacion {
+  id                    Int       @id @default(autoincrement())
+  codigoCiclo           String    @unique // Ej: C-0001
+  
+  kitId                 Int
+  kit                   Kit       @relation(fields: [kitId], references: [id])
+  
+  etapaActual           Int       @default(0) // 0:Recepción, 1:Lavado, 2:Secado, 3:Sellado, 4:Rotulado, 5:Esterilizado
+  
+  // Usuario que firma (PIN) para avanzar de etapa
+  responsableActualId   Int?      
+  responsable           Usuario?  @relation("ResponsableCiclo", fields: [responsableActualId], references: [id])
+  
+  // --- DATOS ETAPA 3 & 4 (SELLADO Y ROTULADO) ---
+  tipoSellado           String?   // Papel crepé, Papel grado medico, Tela
+  tipoEmpaque           String?   // Bolsa Mixta, Contenedor Rígido, Papel
+  cintaTest             Boolean   @default(false)
+  quimicoInterno        Boolean   @default(false)
+  lote                  String?
+  observacionRotulado   String?   @db.Text
+  
+  // --- DATOS ETAPA 5 (ESTERILIZADO Y FINALIZACIÓN) ---
+  tipoEsterilizacion    String?   // Autoclave, Statim, etc.
+  autoclaveTipo         String?   // Guarda si fue a Gas o Vapor
+  valorIndicador        String?   // El número o valor que arroja el indicador
+  indicadorUrl          String?   // URL de la foto de evidencia
+  
+  // --- FLUJO DE ENVÍO / DESTINO ---
+  destinoSet            String?   // "Distribución (A Quirófano)" o "Almacenamiento (Stock)"
+  
+  // DATOS DINÁMICOS DE DISTRIBUCIÓN
+  sedeDestinoId         Int?      // Llave foránea para la Sede destino
+  sedeDestino           Sede?     @relation("SedeDestinoTraslado", fields: [sedeDestinoId], references: [id])
+  quirofanoDestino      String?
+  instrumentadorDestino String?
+
+  // DATOS DE ALMACENAMIENTO (STOCK)
+  almacEstado           String?
+  almacFechaIngreso     String?
+  almacFechaVencimiento String?
+  almacUbicacion        String?
+  almacObservacion      String?   @db.Text
+
+  estadoGlobal          String    @default("En Curso") // "En Curso", "Finalizado", "Cancelado"
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  escaneos              EscaneoInstrumento[]
+}
+
+model EscaneoInstrumento {
+  id            Int                 @id @default(autoincrement())
+  
+  cicloId       Int
+  ciclo         CicloEsterilizacion @relation(fields: [cicloId], references: [id])
+  
+  instrumentoId Int
+  instrumento   HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
+  
+  etapa         Int                 // 0: Escaneado en Recepción, 2: Escaneado en Secado
+  estadoFisico  String              // "Buen estado" o "Mal estado"
+  
+  createdAt     DateTime            @default(now())
+}
