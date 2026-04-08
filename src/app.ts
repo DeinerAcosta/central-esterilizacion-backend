@@ -22,12 +22,15 @@ const PORT = 4000;
 
 // Configuración de CORS actualizada para permitir la conexión desde Vercel
 app.use(cors({
-  origin: [
-    'http://localhost:5173', // Tu entorno de desarrollo local
-    'https://central-esterilizacion-v2-osalvmd3a-deineracostas-projects.vercel.app', // Tu enlace de vista previa de Vercel
-    'https://central-esterilizacion-v2.vercel.app' // El enlace principal de Vercel
-  ],
-  credentials: true // Vital para que funcionen las cookies y el Login
+  origin: function (origin, callback) {
+    // Permitir peticiones locales (tu PC) y cualquier dominio de Vercel
+    if (!origin || origin.startsWith('http://localhost') || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true
 }));
 
 app.use(express.json()); 
