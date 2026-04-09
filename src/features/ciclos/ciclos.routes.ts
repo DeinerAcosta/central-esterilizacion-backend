@@ -33,24 +33,26 @@ const upload = multer({ storage });
 // RUTAS DE LA API DE CICLOS QX
 // ==========================================
 
-// NUEVA RUTA: Obtener el conteo dinámico para la barra lateral
+// 1. Obtener el conteo dinámico para la barra lateral
 // ⚠️ Debe ir antes de las rutas con parámetros dinámicos (:id)
 router.get('/conteos', ciclosController.obtenerConteoEtapas);
 
+// 2. NUEVA RUTA: Obtener el histórico de instrumentos por KIT para el Dashboard
+router.get('/historico/:kitId', ciclosController.obtenerHistoricoKit);
 
-// 1. Consultar si un KIT está en proceso
+// 3. Consultar si un KIT está en proceso
 router.get('/activo/:kitId', ciclosController.obtenerCicloActivo);
 
-// 2. Avanzar de etapa (con firma PIN)
+// 4. Avanzar de etapa (con firma PIN)
 router.post('/avanzar', ciclosController.avanzarEtapa);
 
-// 3. Escanear instrumento (La cámara)
+// 5. Escanear instrumento (La cámara)
 router.post('/escanear', ciclosController.escanearInstrumento);
 
-// 4. Finalizar el ciclo (Requiere recibir la foto)
+// 6. Finalizar el ciclo (Requiere recibir la foto)
 router.post('/:cicloId/finalizar', upload.single('evidencia'), ciclosController.finalizarCiclo);
 
-// 5. Cancelar y eliminar un ciclo a medias (El botón cancelar de React)
+// 7. Cancelar y eliminar un ciclo a medias (El botón cancelar de React)
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;

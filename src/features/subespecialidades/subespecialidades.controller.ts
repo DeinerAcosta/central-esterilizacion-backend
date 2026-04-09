@@ -118,3 +118,25 @@ export const toggleEstadoSubespecialidad = async (req: Request, res: Response) =
     res.status(500).json({ msg: "Error al actualizar el estado" });
   }
 };
+
+// =========================================================
+// NUEVA FUNCIÓN: Obtener subespecialidades con sus kits (Para Sidebar Histórico)
+// =========================================================
+export const obtenerConKits = async (req: Request, res: Response) => {
+  try {
+    // Solo traemos subespecialidades activas
+    const data = await prisma.subespecialidad.findMany({
+      where: { estado: true },
+      include: {
+        // Y solo traemos los kits que también estén activos
+        kits: {
+          where: { estado: 'Activo' } 
+        }
+      }
+    });
+    return res.json(data);
+  } catch (error) {
+    console.error('Error al obtener subespecialidades con kits:', error);
+    return res.status(500).json({ msg: "Error al obtener datos para el sidebar" });
+  }
+};
