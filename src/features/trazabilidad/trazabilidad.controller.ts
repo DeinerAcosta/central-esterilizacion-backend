@@ -121,7 +121,7 @@ export const trazabilidadController = {
         id: inst.id,
         nombre: inst.nombre,
         codigo: inst.codigo,
-        // 🚀 Buscamos la foto en la BD (ajusta el nombre del campo si en tu BD se llama diferente)
+        // Buscamos la foto en la BD
         imagen: inst.fotoUrl || inst.imagen || inst.foto || null 
       }));
 
@@ -189,7 +189,7 @@ export const trazabilidadController = {
 
       const escaneosUnicos = Array.from(new Map(c.escaneos.map((e: any) => [e.instrumentoId, e])).values()) as any[];
       
-      // 🚀 FIX: Función auxiliar para inyectar la imagen al enviar el instrumento a la tabla de React
+      // Función auxiliar para inyectar la imagen al enviar el instrumento a la tabla de React
       const mapearInstrumentoConFoto = (e: any) => ({
         ...e.instrumento,
         imagen: e.instrumento.fotoUrl || e.instrumento.imagen || e.instrumento.foto || null
@@ -227,6 +227,14 @@ export const trazabilidadController = {
         lote: c.lote || '-',
         responsable: c.responsable?.nombre ? `${c.responsable.nombre} ${c.responsable.apellido}` : 'Sistema',
         evidencia: c.indicadorUrl,
+        
+        // 🚀 NUEVOS CAMPOS: Datos reales extraídos de la BD para la tabla de React
+        fechaReal: fechaFin,
+        espReal: c.kit?.especialidad?.nombre || 'N/A',
+        subReal: c.kit?.subespecialidad?.nombre || 'N/A',
+        tipoReal: c.kit?.tipoSubespecialidad || 'N/A',
+        codigoKitReal: c.kit?.codigoKit || 'N/A',
+
         instrumentosBuenos,
         instrumentosMalos,
         timeline
