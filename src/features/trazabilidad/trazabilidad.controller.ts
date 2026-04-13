@@ -25,19 +25,24 @@ export const trazabilidadController = {
 
       // Filtro 1: Pestaña actual (Asignaciones vs Historial)
       if (tab === 'asignaciones') {
-        // Asignaciones son ciclos que fueron enviados a Distribución (Quirófano)
+        // Asignaciones son ciclos que fueron enviados a Distribución y aún no se aprueban (Entregado)
         whereClause.destinoSet = { contains: 'Distribución' };
+        whereClause.estadoGlobal = { not: 'Entregado' }; // Solo mostrar las que faltan por aprobar
       } else {
-        // Historial de ciclos son todos los que ya no están "En Curso"
+        // Historial de ciclos son todos (o los finalizados/entregados)
+        // Puedes ajustar esto según tu lógica de negocio
         whereClause.estadoGlobal = { in: ['Finalizado', 'Cancelado', 'Entregado'] };
       }
 
       // Filtro 2: Rangos de Fechas
-      if (fechaDesde && fechaHasta) {
-        whereClause.updatedAt = {
-          gte: new Date(`${fechaDesde}T00:00:00.000Z`),
-          lte: new Date(`${fechaHasta}T23:59:59.999Z`)
-        };
+      if (fechaDesde || fechaHasta) {
+        whereClause.updatedAt = {};
+        if (fechaDesde) {
+          whereClause.updatedAt.gte = new Date(`${fechaDesde}T00:00:00.000Z`);
+        }
+        if (fechaHasta) {
+          whereClause.updatedAt.lte = new Date(`${fechaHasta}T23:59:59.999Z`);
+        }
       }
 
       // Filtro 3: Especialidad y Subespecialidad (Relación anidada con KIT)
@@ -134,10 +139,33 @@ export const trazabilidadController = {
       const { cicloId } = req.params;
       const { instrumentos } = req.body; 
 
-      // Solo cerramos la asignación marcándola en el ciclo.
-      await prisma.cicloEsterilizacion.update({
-        where: { id: Number(cicloId) },
-        data: { estadoGlobal: 'Entregado' } // Cambiamos el estado para que ya no aparezca como pendiente
+      // Verificamos que vengan instrumentos
+      if (!instrumentos || !Array.isArray(instrumentos)) {
+          return res.status(400).json({ success: false, message: 'Formato de instrumentos inválido' });
+      }
+
+      // Iniciamos una transacción de Prisma para asegurar que todo se guarde o nada
+      await prisma.$transaction(async (tx) => {
+        // 1. Actualizamos el estado de cada instrumento individual
+        for (const inst of instrumentos) {
+          // Si se aprobó, queda Habilitado. Si se rechazó, queda Deshabilitado para revisión.
+          const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';
+          
+          await tx.hojaVidaInstrumento.update({
+            where: { id: Number(inst.id) },
+            data: { 
+                estadoActual: nuevoEstado,
+                // Si fue rechazado, aquí idealmente guardaríamos el inst.tipoDano y la descripcion
+                // en una tabla de 'ReportesDanio' o en un campo de notas del instrumento.
+            }
+          });
+        }
+
+        // 2. Cerramos la asignación marcándola en el ciclo.
+        await tx.cicloEsterilizacion.update({
+          where: { id: Number(cicloId) },
+          data: { estadoGlobal: 'Entregado' } // Pasa al historial (ciclos)
+        });
       });
 
       return res.json({ success: true, message: 'Aprobación guardada correctamente' });
@@ -157,7 +185,7 @@ export const trazabilidadController = {
         where: { id: Number(cicloId) },
         include: {
           kit: { include: { especialidad: true, subespecialidad: true } },
-          responsable: true,  // 🚨 CORRECCIÓN CLAVE: El esquema usa 'responsable', no 'responsableActual'
+          responsable: true,
           sedeDestino: true,
           escaneos: { include: { instrumento: true } }
         }
@@ -172,10 +200,17 @@ export const trazabilidadController = {
       // Tipado explícito con "any" para evitar que TypeScript se ponga estricto
       const c = ciclo as any;
 
-      // Filtrar instrumentos únicos y separarlos por estado
-      const instrumentosUnicos = Array.from(new Map(c.escaneos.map((e: any) => [e.instrumentoId, e.instrumento])).values());
-      const instrumentosBuenos = instrumentosUnicos.filter((i: any) => i.estadoActual === 'Habilitado' || i.estadoActual === 'Esterilizado');
-      const instrumentosMalos = instrumentosUnicos.filter((i: any) => i.estadoActual === 'Deshabilitado' || i.estadoActual === 'Reproceso');
+      // Filtrar instrumentos únicos y separarlos por estado (basado en el estado físico del escaneo final)
+      // Como ahora los aprueban/rechazan, el estado actual en HojaVida dicta la realidad.
+      const escaneosUnicos = Array.from(new Map(c.escaneos.map((e: any) => [e.instrumentoId, e])).values()) as any[];
+      
+      const instrumentosBuenos = escaneosUnicos
+        .filter((e: any) => e.instrumento.estadoActual === 'Habilitado' || e.instrumento.estadoActual === 'Esterilizado')
+        .map(e => e.instrumento);
+        
+      const instrumentosMalos = escaneosUnicos
+        .filter((e: any) => e.instrumento.estadoActual === 'Deshabilitado' || e.instrumento.estadoActual === 'Reproceso')
+        .map(e => e.instrumento);
 
       // Construir la línea de tiempo dinámica
       const timeline = [
