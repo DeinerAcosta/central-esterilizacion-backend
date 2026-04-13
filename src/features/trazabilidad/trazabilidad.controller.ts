@@ -25,12 +25,11 @@ export const trazabilidadController = {
 
       // Filtro 1: Pestaña actual (Asignaciones vs Historial)
       if (tab === 'asignaciones') {
-        // Asignaciones son ciclos que fueron enviados a Distribución y aún no se aprueban (Entregado)
+        // Asignaciones son ciclos que fueron enviados a Distribución y aún no se aprueban
         whereClause.destinoSet = { contains: 'Distribución' };
-        //whereClause.estadoGlobal = { not: 'Entregado' }; // Solo mostrar las que faltan por aprobar
+        // whereClause.estadoGlobal = { not: 'Entregado' }; // COMENTADO PARA PRUEBAS: Descomenta en producción
       } else {
-        // Historial de ciclos son todos (o los finalizados/entregados)
-        // Puedes ajustar esto según tu lógica de negocio
+        // Historial de ciclos
         whereClause.estadoGlobal = { in: ['Finalizado', 'Cancelado', 'Entregado'] };
       }
 
@@ -78,7 +77,7 @@ export const trazabilidadController = {
         })
       ]);
 
-      // Mapear los datos para que el Frontend los lea exactamente como espera
+      // Mapear los datos para el Frontend
       const formattedData = ciclos.map(c => ({
         id: c.id,
         fecha: new Date(c.updatedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
@@ -111,20 +110,19 @@ export const trazabilidadController = {
     try {
       const { cicloId } = req.params;
 
-      // Buscamos los instrumentos que fueron escaneados y amarrados a este ciclo
       const escaneos = await prisma.escaneoInstrumento.findMany({
         where: { cicloId: Number(cicloId) },
         include: { instrumento: true }
       });
 
-      // Eliminamos duplicados (ya que un instrumento se escanea en Lavado y luego en Secado)
       const instrumentosUnicos = Array.from(new Map(escaneos.map((e: any) => [e.instrumentoId, e.instrumento])).values());
 
       const data = instrumentosUnicos.map((inst: any) => ({
         id: inst.id,
         nombre: inst.nombre,
         codigo: inst.codigo,
-        imagen: inst.fotoUrl || null // 👈 AGREGA ESTO AQUÍ
+        // 🚀 Buscamos la foto en la BD (ajusta el nombre del campo si en tu BD se llama diferente)
+        imagen: inst.fotoUrl || inst.imagen || inst.foto || null 
       }));
 
       return res.json({ success: true, data });
@@ -140,32 +138,23 @@ export const trazabilidadController = {
       const { cicloId } = req.params;
       const { instrumentos } = req.body; 
 
-      // Verificamos que vengan instrumentos
       if (!instrumentos || !Array.isArray(instrumentos)) {
           return res.status(400).json({ success: false, message: 'Formato de instrumentos inválido' });
       }
 
-      // Iniciamos una transacción de Prisma para asegurar que todo se guarde o nada
       await prisma.$transaction(async (tx) => {
-        // 1. Actualizamos el estado de cada instrumento individual
         for (const inst of instrumentos) {
-          // Si se aprobó, queda Habilitado. Si se rechazó, queda Deshabilitado para revisión.
           const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';
           
           await tx.hojaVidaInstrumento.update({
             where: { id: Number(inst.id) },
-            data: { 
-                estadoActual: nuevoEstado,
-                // Si fue rechazado, aquí idealmente guardaríamos el inst.tipoDano y la descripcion
-                // en una tabla de 'ReportesDanio' o en un campo de notas del instrumento.
-            }
+            data: { estadoActual: nuevoEstado }
           });
         }
 
-        // 2. Cerramos la asignación marcándola en el ciclo.
         await tx.cicloEsterilizacion.update({
           where: { id: Number(cicloId) },
-          data: { estadoGlobal: 'Entregado' } // Pasa al historial (ciclos)
+          data: { estadoGlobal: 'Entregado' }
         });
       });
 
@@ -181,7 +170,6 @@ export const trazabilidadController = {
     try {
       const { cicloId } = req.params;
 
-      // Buscar el ciclo completo con todas sus relaciones
       const ciclo = await prisma.cicloEsterilizacion.findUnique({
         where: { id: Number(cicloId) },
         include: {
@@ -194,26 +182,27 @@ export const trazabilidadController = {
 
       if (!ciclo) return res.status(404).json({ success: false, message: 'Ciclo no encontrado' });
 
-      // Formatear las fechas
       const fechaInicio = new Date(ciclo.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
       const fechaFin = new Date(ciclo.updatedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
 
-      // Tipado explícito con "any" para evitar que TypeScript se ponga estricto
       const c = ciclo as any;
 
-      // Filtrar instrumentos únicos y separarlos por estado (basado en el estado físico del escaneo final)
-      // Como ahora los aprueban/rechazan, el estado actual en HojaVida dicta la realidad.
       const escaneosUnicos = Array.from(new Map(c.escaneos.map((e: any) => [e.instrumentoId, e])).values()) as any[];
       
+      // 🚀 FIX: Función auxiliar para inyectar la imagen al enviar el instrumento a la tabla de React
+      const mapearInstrumentoConFoto = (e: any) => ({
+        ...e.instrumento,
+        imagen: e.instrumento.fotoUrl || e.instrumento.imagen || e.instrumento.foto || null
+      });
+
       const instrumentosBuenos = escaneosUnicos
         .filter((e: any) => e.instrumento.estadoActual === 'Habilitado' || e.instrumento.estadoActual === 'Esterilizado')
-        .map(e => e.instrumento);
+        .map(mapearInstrumentoConFoto);
         
       const instrumentosMalos = escaneosUnicos
         .filter((e: any) => e.instrumento.estadoActual === 'Deshabilitado' || e.instrumento.estadoActual === 'Reproceso')
-        .map(e => e.instrumento);
+        .map(mapearInstrumentoConFoto);
 
-      // Construir la línea de tiempo dinámica
       const timeline = [
         { label: 'Recepción', time: fechaInicio, completed: true },
         { label: 'Lavado', time: fechaInicio, completed: c.etapaActual >= 1 },
@@ -230,7 +219,6 @@ export const trazabilidadController = {
         }
       ];
 
-      // Formatear la data exacta que espera la nueva vista de React
       const data = {
         codigoCiclo: c.codigoCiclo || `CQX-${c.id.toString().padStart(5, '0')}`,
         kit: `${c.kit?.codigoKit || '00'} - ${c.kit?.especialidad?.nombre || 'General'}`,
