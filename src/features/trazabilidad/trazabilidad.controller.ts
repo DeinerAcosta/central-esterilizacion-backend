@@ -27,7 +27,7 @@ export const trazabilidadController = {
       if (tab === 'asignaciones') {
         // Asignaciones son ciclos que fueron enviados a Distribución y aún no se aprueban (Entregado)
         whereClause.destinoSet = { contains: 'Distribución' };
-        whereClause.estadoGlobal = { not: 'Entregado' }; // Solo mostrar las que faltan por aprobar
+        //whereClause.estadoGlobal = { not: 'Entregado' }; // Solo mostrar las que faltan por aprobar
       } else {
         // Historial de ciclos son todos (o los finalizados/entregados)
         // Puedes ajustar esto según tu lógica de negocio
