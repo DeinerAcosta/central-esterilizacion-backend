@@ -123,7 +123,8 @@ export const trazabilidadController = {
       const data = instrumentosUnicos.map((inst: any) => ({
         id: inst.id,
         nombre: inst.nombre,
-        codigo: inst.codigo
+        codigo: inst.codigo,
+        imagen: inst.fotoUrl || null // 👈 AGREGA ESTO AQUÍ
       }));
 
       return res.json({ success: true, data });
