@@ -12,11 +12,12 @@ export const trazabilidadController = {
       const limit = 10;
       const skip = (page - 1) * limit;
       
-      // Capturamos TODOS los filtros del frontend
+      // 🚀 CAPTURAMOS TODOS LOS FILTROS EXACTOS DEL FRONTEND
       const tab = req.query.tab as string || 'asignaciones';
-      const search = req.query.search as string || '';
       const especialidadId = req.query.especialidadId as string;
       const subespecialidadId = req.query.subespecialidadId as string;
+      const kitId = req.query.kitId as string;     // Nuevo filtro
+      const sedeId = req.query.sedeId as string;   // Nuevo filtro (reemplaza a Quirófano global)
       const fechaDesde = req.query.fechaDesde as string;
       const fechaHasta = req.query.fechaHasta as string;
 
@@ -51,13 +52,14 @@ export const trazabilidadController = {
         if (subespecialidadId) whereClause.kit.subespecialidadId = Number(subespecialidadId);
       }
 
-      // Filtro 4: Búsqueda global (Quirófano, Sede, Instrumentador o Código de KIT)
-      if (search) {
-        whereClause.OR = [
-          { quirofanoDestino: { contains: search } },
-          { instrumentadorDestino: { contains: search } },
-          { kit: { codigoKit: { contains: search } } }
-        ];
+      // Filtro 4: Kit Independiente
+      if (kitId) {
+        whereClause.kitId = Number(kitId);
+      }
+
+      // Filtro 5: Sede Independiente
+      if (sedeId) {
+        whereClause.sedeDestinoId = Number(sedeId);
       }
 
       // Ejecutamos las consultas a la Base de Datos
