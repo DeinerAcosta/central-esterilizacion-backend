@@ -62,7 +62,8 @@ export const getReportes = async (req: Request, res: Response) => {
 // ==========================================
 export const createReporte = async (req: Request, res: Response) => {
   try {
-    const { instrumentoId, tipoDano, codigoVerificacion } = req.body;
+    // 🚀 CORRECCIÓN: Agregamos descripcionDano para que no se pierda el texto del usuario
+    const { instrumentoId, tipoDano, descripcionDano, codigoVerificacion } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const evidenciaFotoUrl = files?.['evidencia'] ? `/uploads/${files['evidencia'][0].filename}` : null;
 
@@ -89,6 +90,7 @@ export const createReporte = async (req: Request, res: Response) => {
         codigo: codigoGenerado,
         instrumentoId: Number(instrumentoId),
         tipoDano: String(tipoDano),
+        descripcionDano: descripcionDano ? String(descripcionDano) : null, // 🚀 CORRECCIÓN AQUÍ
         evidenciaFotoUrl,
         reportadoPorId: usuarioResponsable.id,
         estado: "Pendiente"
@@ -142,7 +144,7 @@ export const gestionarReporte = async (req: Request, res: Response) => {
 export const finalizarReporte = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { destinoFinal } = req.body; // "Reingreso" o "De baja"
+    const { destinoFinal } = req.body; // "Reingreso" o "Control de bajas y retiros"
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const informeMantenimientoUrl = files?.['informePdf'] ? `/uploads/${files['informePdf'][0].filename}` : null;
 

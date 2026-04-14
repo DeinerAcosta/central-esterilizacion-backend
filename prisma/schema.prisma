@@ -11,33 +11,33 @@ datasource db {
 // SEGURIDAD Y USUARIOS
 // ==========================================
 model Usuario {
-  id                    Int      @id @default(autoincrement())
-  codigo                String   @unique
-  codigoVerificacion    String?  // ✅ Para guardar el PIN secreto de 4 dígitos
-  nombre                String
-  apellido              String
-  empresa               String
-  cargo                 String?
-  usuario               String   @unique
-  email                 String   @unique
-  password              String
-  foto                  String?
-  rol                   String   @default("Administrador")
+  id                  Int      @id @default(autoincrement())
+  codigo              String   @unique
+  codigoVerificacion  String?  // ✅ Para guardar el PIN secreto de 4 dígitos
+  nombre              String
+  apellido            String
+  empresa             String
+  cargo               String?
+  usuario             String   @unique
+  email               String   @unique
+  password            String
+  foto                String?
+  rol                 String   @default("Administrador")
 
-  esPropietario         Boolean  @default(false)
-  registroContable      Boolean  @default(false)
+  esPropietario       Boolean  @default(false)
+  registroContable    Boolean  @default(false)
 
-  permisos              Json?
+  permisos            Json?
   esPasswordProvisional Boolean  @default(true)
-  estado                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  estado              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  hojasDeVidaPropias    HojaVidaInstrumento[] @relation("PropietarioInstrumento")
-  reportesCreados       Reporte[]             @relation("UsuarioReporta")
+  hojasDeVidaPropias  HojaVidaInstrumento[] @relation("PropietarioInstrumento")
+  reportesCreados     Reporte[]             @relation("UsuarioReporta")
   
   // ✅ RELACIÓN PARA CICLO ESTERILIZACIÓN
-  ciclosGestionados     CicloEsterilizacion[] @relation("ResponsableCiclo")
+  ciclosGestionados   CicloEsterilizacion[] @relation("ResponsableCiclo")
 }
 
 // ==========================================
@@ -54,32 +54,32 @@ model Especialidad {
 }
 
 model Subespecialidad {
-  id             Int                   @id @default(autoincrement())
-  codigo         String                @unique
+  id             Int                 @id @default(autoincrement())
+  codigo         String              @unique
   nombre         String
-  estado         Boolean               @default(true)
+  estado         Boolean             @default(true)
   especialidadId Int
-  especialidad   Especialidad          @relation(fields: [especialidadId], references: [id])
+  especialidad   Especialidad        @relation(fields: [especialidadId], references: [id])
   tiposSub       TipoSubespecialidad[]
   kits           Kit[]
   hojasDeVida    HojaVidaInstrumento[]
 }
 
 model TipoSubespecialidad {
-  id                Int                   @id @default(autoincrement())
-  codigo            String                @unique
+  id                Int                 @id @default(autoincrement())
+  codigo            String              @unique
   nombre            String
-  estado            Boolean               @default(true)
+  estado            Boolean             @default(true)
   subespecialidadId Int
-  subespecialidad   Subespecialidad       @relation(fields: [subespecialidadId], references: [id])
+  subespecialidad   Subespecialidad     @relation(fields: [subespecialidadId], references: [id])
   hojasDeVida       HojaVidaInstrumento[]
 }
 
 model Marca {
-  id          Int                   @id @default(autoincrement())
-  codigo      String                @unique
-  nombre      String                @unique
-  estado      Boolean               @default(true)
+  id          Int                 @id @default(autoincrement())
+  codigo      String              @unique
+  nombre      String              @unique
+  estado      Boolean             @default(true)
   hojasDeVida HojaVidaInstrumento[]
 }
 
@@ -308,6 +308,7 @@ model Reporte {
   instrumento              HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
 
   tipoDano                 String
+  descripcionDano          String?             @db.Text // 🚀 AQUÍ ESTÁ EL CAMPO AGREGADO
   evidenciaFotoUrl         String?
   reportadoPorId           Int
   reportadoPor             Usuario             @relation("UsuarioReporta", fields: [reportadoPorId], references: [id])
