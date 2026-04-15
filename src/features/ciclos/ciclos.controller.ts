@@ -291,5 +291,40 @@ export const ciclosController = {
       console.error('Error al obtener el historial del kit:', error);
       return res.status(500).json({ success: false, message: 'Error interno al buscar historial' });
     }
+  },
+
+  // =========================================================================
+  // 7. OBTENER DATOS PARA EL TABLERO KANBAN EN TIEMPO REAL
+  // =========================================================================
+  getTableroControl: async (req: Request, res: Response) => {
+    try {
+      const ciclosActivos = await prisma.cicloEsterilizacion.findMany({
+        where: {
+          estadoGlobal: "En Curso"
+        },
+        include: {
+          kit: {
+            select: {
+              codigoKit: true,
+              nombre: true
+            }
+          },
+          responsable: {
+            select: {
+              nombre: true,
+              apellido: true
+            }
+          }
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      });
+
+      return res.json({ success: true, data: ciclosActivos });
+    } catch (error) {
+      console.error("❌ Error al obtener el tablero:", error);
+      return res.status(500).json({ success: false, message: "Error al cargar el tablero de control." });
+    }
   }
 };

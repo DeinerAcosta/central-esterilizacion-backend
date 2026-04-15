@@ -37,22 +37,26 @@ const upload = multer({ storage });
 // ⚠️ Debe ir antes de las rutas con parámetros dinámicos (:id)
 router.get('/conteos', ciclosController.obtenerConteoEtapas);
 
-// 2. NUEVA RUTA: Obtener el histórico de instrumentos por KIT para el Dashboard
+// 2. NUEVA RUTA: Tablero Kanban de control en tiempo real
+// ⚠️ También debe ir antes de las rutas dinámicas
+router.get('/tablero', ciclosController.getTableroControl);
+
+// 3. Obtener el histórico de instrumentos por KIT para el Dashboard
 router.get('/historico/:kitId', ciclosController.obtenerHistoricoKit);
 
-// 3. Consultar si un KIT está en proceso
+// 4. Consultar si un KIT está en proceso
 router.get('/activo/:kitId', ciclosController.obtenerCicloActivo);
 
-// 4. Avanzar de etapa (con firma PIN)
+// 5. Avanzar de etapa (con firma PIN)
 router.post('/avanzar', ciclosController.avanzarEtapa);
 
-// 5. Escanear instrumento (La cámara)
+// 6. Escanear instrumento (La cámara)
 router.post('/escanear', ciclosController.escanearInstrumento);
 
-// 6. Finalizar el ciclo (Requiere recibir la foto)
+// 7. Finalizar el ciclo (Requiere recibir la foto)
 router.post('/:cicloId/finalizar', upload.single('evidencia'), ciclosController.finalizarCiclo);
 
-// 7. Cancelar y eliminar un ciclo a medias (El botón cancelar de React)
+// 8. Cancelar y eliminar un ciclo a medias (El botón cancelar de React)
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
