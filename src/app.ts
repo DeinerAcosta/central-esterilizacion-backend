@@ -16,11 +16,11 @@ import reportesRoutes from './features/reportes/reportes.routes';
 import ciclosRoutes from './features/ciclos/ciclos.routes';
 import dashboardRoutes from './features/dashboard/dashboard.routes'; 
 import trazabilidadRoutes from './features/trazabilidad/trazabilidad.routes';
+import historicoCicloRoutes from './features/historicociclo/historicociclo.routes';
 
 const app = express();
 const PORT = 4000;
 
-// Configuración de CORS actualizada para permitir la conexión desde Vercel
 app.use(cors({
   origin: function (origin, callback) {
     // Permitir peticiones locales (tu PC) y cualquier dominio de Vercel
@@ -35,8 +35,6 @@ app.use(cors({
 
 app.use(express.json()); 
 app.use('/uploads', express.static('uploads'));
-
-// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/insumos', insumosRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
@@ -53,6 +51,7 @@ app.use('/api/reportes', reportesRoutes);
 app.use('/api/ciclos', ciclosRoutes); 
 app.use('/api/dashboard', dashboardRoutes); 
 app.use('/api/trazabilidad', trazabilidadRoutes);
+app.use('/api/historico-ciclo', historicoCicloRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
