@@ -17,6 +17,7 @@ import ciclosRoutes from './features/ciclos/ciclos.routes';
 import dashboardRoutes from './features/dashboard/dashboard.routes'; 
 import trazabilidadRoutes from './features/trazabilidad/trazabilidad.routes';
 import historicoCicloRoutes from './features/historicociclo/historicociclo.routes';
+import insumosQxRoutes from './features/insumosqx/insumosqx.routes'; // <-- NUEVA IMPORTACIÓN
 
 const app = express();
 const PORT = 4000;
@@ -52,6 +53,7 @@ app.use('/api/ciclos', ciclosRoutes);
 app.use('/api/dashboard', dashboardRoutes); 
 app.use('/api/trazabilidad', trazabilidadRoutes);
 app.use('/api/historico-ciclo', historicoCicloRoutes);
+app.use('/api/insumosqx', insumosQxRoutes); // <-- NUEVA RUTA REGISTRADA
 
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });

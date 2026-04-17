@@ -308,7 +308,7 @@ model Reporte {
   instrumento              HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
 
   tipoDano                 String
-  descripcionDano          String?             @db.Text // 🚀 AQUÍ ESTÁ EL CAMPO AGREGADO
+  descripcionDano          String?             @db.Text 
   evidenciaFotoUrl         String?
   reportadoPorId           Int
   reportadoPor             Usuario             @relation("UsuarioReporta", fields: [reportadoPorId], references: [id])
@@ -327,9 +327,34 @@ model Reporte {
 }
 
 // ==========================================
+// 🚀 NUEVO MÓDULO: CATÁLOGO DE INSUMOS QX
+// ==========================================
+model CatalogoInsumo {
+  id             Int           @id @default(autoincrement())
+  codigo         String        @unique
+  nombre         String
+  unidad         String        // Ej: unidad, caja
+  esterilizacion String        // Ej: Autoclave
+  presentacion   String        // Ej: Caja
+  estado         String        @default("Activo")
+
+  insumosUsados  InsumoCiclo[]
+}
+
+model InsumoCiclo {
+  id                  Int                 @id @default(autoincrement())
+  cicloId             Int
+  insumoId            Int
+  cantidad            Int
+  
+  ciclo               CicloEsterilizacion @relation(fields: [cicloId], references: [id])
+  insumo              CatalogoInsumo      @relation(fields: [insumoId], references: [id])
+}
+
+
+// ==========================================
 // ✅ MÓDULO: CICLO DE ESTERILIZACIÓN (INSTRUMENTOS QX)
 // ==========================================
-
 model CicloEsterilizacion {
   id                    Int       @id @default(autoincrement())
   codigoCiclo           String    @unique // Ej: C-0001
@@ -372,6 +397,10 @@ model CicloEsterilizacion {
   almacFechaVencimiento String?
   almacUbicacion        String?
   almacObservacion      String?   @db.Text
+
+  // 🚀 NUEVOS CAMPOS: Insumos QX vinculados a este ciclo
+  evidenciaInsumosUrl   String?
+  insumosUsados         InsumoCiclo[]
 
   estadoGlobal          String    @default("En Curso") // "En Curso", "Finalizado", "Cancelado"
   
