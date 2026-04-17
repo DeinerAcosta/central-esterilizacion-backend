@@ -30,8 +30,8 @@ export const insumosQxController = {
         return res.status(400).json({ success: false, message: 'La foto del indicador es obligatoria.' });
       }
 
-      // Validar el PIN del responsable
-      const usuario = await prisma.usuario.findFirst({ where: { pin: pinResponsable } });
+      // ✅ CORRECCIÓN: Usar codigoVerificacion en lugar de pin
+      const usuario = await prisma.usuario.findFirst({ where: { codigoVerificacion: pinResponsable } });
       if (!usuario) {
         return res.status(403).json({ success: false, message: 'PIN incorrecto o no autorizado.' });
       }
