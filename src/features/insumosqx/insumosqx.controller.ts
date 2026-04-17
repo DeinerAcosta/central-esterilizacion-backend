@@ -8,9 +8,12 @@ export const insumosQxController = {
   // 1. Obtener el catálogo REAL de la base de datos
   obtenerCatalogo: async (req: Request, res: Response) => {
     try {
-      // Buscamos en la tabla original InsumoQuirurgico y traemos sus relaciones
+      // Buscamos en la tabla original InsumoQuirurgico y aplicamos el filtro del documento
       const insumos = await prisma.insumoQuirurgico.findMany({
-        where: { estado: true }, // Tu tabla original usa un booleano para el estado
+        where: { 
+          estado: true, 
+          requiereEsterilizacion: true // <-- ✅ REGLA DEL DOCUMENTO APLICADA AQUÍ
+        },
         include: {
           unidadMedida: true,
           presentacion: true
