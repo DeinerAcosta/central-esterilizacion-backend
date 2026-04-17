@@ -49,15 +49,21 @@ export const insumosQxController = {
         return res.status(400).json({ success: false, message: 'La foto del indicador es obligatoria.' });
       }
 
-      // Validar el PIN
-      const usuario = await prisma.usuario.findFirst({ where: { codigoVerificacion: pinResponsable } });
+      // 🔐 1. VALIDACIÓN REAL EN BASE DE DATOS DEL PIN
+      const usuario = await prisma.usuario.findFirst({ 
+        where: { 
+          codigoVerificacion: pinResponsable,
+          estado: true // Validamos que el usuario siga activo
+        } 
+      });
+
       if (!usuario) {
-        return res.status(403).json({ success: false, message: 'PIN incorrecto o no autorizado.' });
+        return res.status(403).json({ success: false, message: 'PIN incorrecto o usuario no autorizado.' });
       }
 
       const insumos = JSON.parse(insumosAgregados);
 
-      // Transacción
+      // 💾 2. TRANSACCIÓN SEGURA
       await prisma.$transaction(async (tx) => {
         // A. Guardar cada insumo en el ciclo
         for (const item of insumos) {
@@ -70,14 +76,20 @@ export const insumosQxController = {
           });
         }
 
-        // B. Guardar la foto en el ciclo
+        // B. Actualizar el ciclo con la foto Y EL RESPONSABLE QUE FIRMÓ
         await tx.cicloEsterilizacion.update({
           where: { id: Number(cicloId) },
-          data: { evidenciaInsumosUrl: evidenciaUrl }
+          data: { 
+            evidenciaInsumosUrl: evidenciaUrl,
+            responsableActualId: usuario.id // 🚀 AQUÍ QUEDA REGISTRADO QUIÉN AUTORIZÓ
+          }
         });
       });
 
-      return res.json({ success: true, message: 'Insumos Qx y evidencia registrados exitosamente.' });
+      return res.json({ 
+        success: true, 
+        message: `Insumos registrados exitosamente por ${usuario.nombre}.` 
+      });
     } catch (error) {
       console.error('Error al registrar insumos Qx:', error);
       return res.status(500).json({ success: false, message: 'Error al registrar el proceso.' });
