@@ -116,6 +116,9 @@ model InsumoQuirurgico {
   estado                 Boolean      @default(true)
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
+
+  // 🚀 CONEXIÓN: Permite saber en qué ciclos se ha usado este insumo
+  insumosUsados          InsumoCiclo[] 
 }
 
 model Proveedor {
@@ -327,20 +330,8 @@ model Reporte {
 }
 
 // ==========================================
-// 🚀 NUEVO MÓDULO: CATÁLOGO DE INSUMOS QX
+// TABLA PIVOTE: INSUMOS USADOS EN UN CICLO
 // ==========================================
-model CatalogoInsumo {
-  id             Int           @id @default(autoincrement())
-  codigo         String        @unique
-  nombre         String
-  unidad         String        // Ej: unidad, caja
-  esterilizacion String        // Ej: Autoclave
-  presentacion   String        // Ej: Caja
-  estado         String        @default("Activo")
-
-  insumosUsados  InsumoCiclo[]
-}
-
 model InsumoCiclo {
   id                  Int                 @id @default(autoincrement())
   cicloId             Int
@@ -348,12 +339,13 @@ model InsumoCiclo {
   cantidad            Int
   
   ciclo               CicloEsterilizacion @relation(fields: [cicloId], references: [id])
-  insumo              CatalogoInsumo      @relation(fields: [insumoId], references: [id])
+  
+  // 🚀 CONEXIÓN: Apunta a tu tabla original de Insumos
+  insumo              InsumoQuirurgico    @relation(fields: [insumoId], references: [id])
 }
 
-
 // ==========================================
-// ✅ MÓDULO: CICLO DE ESTERILIZACIÓN (INSTRUMENTOS QX)
+// ✅ MÓDULO: CICLO DE ESTERILIZACIÓN
 // ==========================================
 model CicloEsterilizacion {
   id                    Int       @id @default(autoincrement())
