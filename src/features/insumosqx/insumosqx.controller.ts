@@ -5,21 +5,11 @@ const prisma = new PrismaClient();
 
 export const insumosQxController = {
   
-  /**
-   * 1. OBTENER CATÁLOGO DE INSUMOS
-   * Filtra solo los insumos activos que requieren esterilización según el documento.
-   */
   obtenerCatalogo: async (req: Request, res: Response) => {
     try {
       const insumos = await prisma.insumoQuirurgico.findMany({
-        where: { 
-          estado: true, 
-          requiereEsterilizacion: true 
-        },
-        include: {
-          unidadMedida: true,
-          presentacion: true
-        }
+        where: { estado: true, requiereEsterilizacion: true },
+        include: { unidadMedida: true, presentacion: true }
       });
 
       const datosMapeados = insumos.map(ins => ({
@@ -33,75 +23,73 @@ export const insumosQxController = {
 
       return res.json({ success: true, data: datosMapeados });
     } catch (error: any) {
-      console.error('🚨 Error al obtener catálogo de insumos Qx:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Error interno al cargar el catálogo.',
-        error: error.message 
-      });
+      return res.status(500).json({ success: false, message: 'Error interno', error: error.message });
     }
   },
 
-  /**
-   * 2. REGISTRAR INSUMOS EN EL CICLO
-   * Proceso blindado con transacciones: Borra previos, inserta nuevos y actualiza el ciclo.
-   */
   registrarInsumosCiclo: async (req: Request, res: Response) => {
     try {
       const { cicloId } = req.params;
       const { pinResponsable, insumosAgregados } = req.body;
-      const idCicloNum = Number(cicloId);
+      let idCicloNum = Number(cicloId);
 
-      // 🛡️ VALIDACIÓN 1: ID de Ciclo
-      if (isNaN(idCicloNum) || idCicloNum <= 0) {
-        return res.status(400).json({ success: false, message: 'El ID del ciclo es inválido.' });
-      }
-
-      // 🛡️ VALIDACIÓN 2: Existencia del Ciclo (Evita error de llave foránea 404)
-      const cicloExiste = await prisma.cicloEsterilizacion.findUnique({ where: { id: idCicloNum } });
-      if (!cicloExiste) {
-        return res.status(404).json({ success: false, message: `No se encontró el ciclo con ID ${idCicloNum}.` });
-      }
-
-      // 📸 VALIDACIÓN 3: Archivo de Evidencia
+      // 📸 VALIDACIÓN 1: Archivo
       if (!req.file) {
-        return res.status(400).json({ success: false, message: 'La foto del indicador es obligatoria para finalizar.' });
+        return res.status(400).json({ success: false, message: 'La foto del indicador es obligatoria.' });
       }
       const evidenciaUrl = `/uploads/evidencias/${req.file.filename}`;
 
-      // 🔐 VALIDACIÓN 4: PIN del Responsable
+      // 🔐 VALIDACIÓN 2: PIN
       const usuario = await prisma.usuario.findFirst({ 
-        where: { 
-          codigoVerificacion: pinResponsable,
-          estado: true 
-        } 
+        where: { codigoVerificacion: pinResponsable, estado: true } 
       });
 
       if (!usuario) {
-        return res.status(403).json({ success: false, message: 'PIN de responsable incorrecto o usuario inactivo.' });
+        return res.status(403).json({ success: false, message: 'PIN incorrecto o usuario no autorizado.' });
       }
 
-      // 🛡️ VALIDACIÓN 5: Formato de los Insumos
+      // 🛡️ VALIDACIÓN 3: Formato
       let insumos = [];
       try {
         insumos = JSON.parse(insumosAgregados);
-      } catch (parseError) {
-        return res.status(400).json({ success: false, message: 'El formato de la lista de insumos es inválido.' });
+      } catch (e) {
+        return res.status(400).json({ success: false, message: 'Formato inválido.' });
       }
 
-      if (!Array.isArray(insumos) || insumos.length === 0) {
-        return res.status(400).json({ success: false, message: 'Debe agregar al menos un insumo al registro.' });
+      if (insumos.length === 0) {
+        return res.status(400).json({ success: false, message: 'Agregue al menos un insumo.' });
       }
 
-      // 💾 TRANSACCIÓN SEGURA (Si algo falla, no se guarda nada)
+      // 💾 TRANSACCIÓN SEGURA
       await prisma.$transaction(async (tx) => {
         
-        // A. Limpiar registros previos para este ciclo (Idempotencia)
-        await tx.insumoCiclo.deleteMany({
-          where: { cicloId: idCicloNum }
-        });
+        // 🚀 LA MAGIA: Si el ID es 0 o no existe, CREAMOS un ciclo nuevo solo para insumos
+        if (isNaN(idCicloNum) || idCicloNum <= 0) {
+          const nuevoCiclo = await tx.cicloEsterilizacion.create({
+            data: {
+              codigoCiclo: `C-INS-${Date.now().toString().slice(-6)}`, // Código autogenerado
+              estadoGlobal: "Finalizado",
+              etapaActual: 5,
+              responsableActualId: usuario.id,
+              evidenciaInsumosUrl: evidenciaUrl
+            }
+          });
+          idCicloNum = nuevoCiclo.id; // Asignamos el ID nuevo para usarlo abajo
+        } 
+        else {
+          // Si sí mandaron un ID válido por la URL, usamos ese y actualizamos
+          await tx.cicloEsterilizacion.update({
+            where: { id: idCicloNum },
+            data: { 
+              evidenciaInsumosUrl: evidenciaUrl,
+              responsableActualId: usuario.id
+            }
+          });
+          // Limpiamos previos por si están corrigiendo algo
+          await tx.insumoCiclo.deleteMany({ where: { cicloId: idCicloNum } });
+        }
 
-        // B. Insertar la nueva lista de insumos
+        // Guardamos todos los insumos amarrados al ciclo (ya sea el nuevo o el viejo)
         for (const item of insumos) {
           await tx.insumoCiclo.create({
             data: {
@@ -111,36 +99,13 @@ export const insumosQxController = {
             }
           });
         }
-
-        // C. Actualizar el Ciclo con el Responsable y la URL de la evidencia
-        await tx.cicloEsterilizacion.update({
-          where: { id: idCicloNum },
-          data: { 
-            evidenciaInsumosUrl: evidenciaUrl,
-            responsableActualId: usuario.id
-          }
-        });
       });
 
-      return res.json({ 
-        success: true, 
-        message: `Registro completado exitosamente por ${usuario.nombre}.` 
-      });
+      return res.json({ success: true, message: `Registro completado exitosamente.` });
 
     } catch (error: any) {
-      console.error('🚨 Error crítico en registrarInsumosCiclo:', error);
-      
-      // Captura de errores específicos de Prisma (Llaves foráneas, etc.)
-      let errorDetalle = error.message;
-      if (error.code === 'P2003') {
-        errorDetalle = 'Uno de los insumos seleccionados ya no existe en el catálogo.';
-      }
-
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Fallo en la base de datos',
-        error: errorDetalle
-      });
+      console.error('🚨 Error en registro:', error);
+      return res.status(500).json({ success: false, message: 'Fallo en BD', error: error.message });
     }
   }
 };
