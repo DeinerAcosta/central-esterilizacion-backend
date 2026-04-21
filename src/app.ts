@@ -17,7 +17,8 @@ import ciclosRoutes from './features/ciclos/ciclos.routes';
 import dashboardRoutes from './features/dashboard/dashboard.routes'; 
 import trazabilidadRoutes from './features/trazabilidad/trazabilidad.routes';
 import historicoCicloRoutes from './features/historicociclo/historicociclo.routes';
-import insumosQxRoutes from './features/insumosqx/insumosqx.routes'; // <-- NUEVA IMPORTACIÓN
+import insumosQxRoutes from './features/insumosqx/insumosqx.routes';
+import almacenamientoRoutes from './features/almacenamiento/almacenamiento.routes'; // <-- IMPORTACIÓN DE ALMACENAMIENTO
 
 const app = express();
 const PORT = 4000;
@@ -36,6 +37,10 @@ app.use(cors({
 
 app.use(express.json()); 
 app.use('/uploads', express.static('uploads'));
+
+// ==========================================
+// REGISTRO DE RUTAS
+// ==========================================
 app.use('/api/auth', authRoutes);
 app.use('/api/insumos', insumosRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
@@ -53,7 +58,8 @@ app.use('/api/ciclos', ciclosRoutes);
 app.use('/api/dashboard', dashboardRoutes); 
 app.use('/api/trazabilidad', trazabilidadRoutes);
 app.use('/api/historico-ciclo', historicoCicloRoutes);
-app.use('/api/insumosqx', insumosQxRoutes); // <-- NUEVA RUTA REGISTRADA
+app.use('/api/insumosqx', insumosQxRoutes);
+app.use('/api/almacenamiento', almacenamientoRoutes); // <-- NUEVA RUTA DE ALMACENAMIENTO
 
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
