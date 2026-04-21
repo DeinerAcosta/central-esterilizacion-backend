@@ -58,7 +58,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     const topKitsDB = await prisma.cicloEsterilizacion.groupBy({
       by: ['kitId'],
-      where: { createdAt: kitDateFilter },
+      where: { 
+        createdAt: kitDateFilter,
+        kitId: { not: null } // 👈 FILTRO CRUCIAL: Ignorar los ciclos de insumos que no tienen Kit
+      },
       _count: { _all: true },
       orderBy: { _count: { kitId: 'desc' } },
       take: 5
@@ -66,9 +69,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     // Traer los nombres reales de los kits
     const kitsData = await Promise.all(topKitsDB.map(async (k) => {
+      // Como ya filtramos null arriba, sabemos que kitId es un número válido.
+      // Le decimos a TypeScript que estamos seguros de que no es null usando "as number"
       const kitInfo = await prisma.kit.findUnique({ 
-        where: { id: k.kitId }, 
-        include: { especialidad: true } 
+        where: { id: k.kitId as number }, 
+        include: { especialidad: true } // 👈 SE ASEGURA DE INCLUIR LA RELACIÓN
       });
       return {
         esp: kitInfo?.especialidad?.nombre || 'General',
