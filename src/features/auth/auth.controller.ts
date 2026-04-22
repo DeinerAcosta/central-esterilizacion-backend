@@ -50,7 +50,6 @@ export const loginUsuario = async (req: Request, res: Response): Promise<void> =
         usuario: user.usuario,
         email: user.email,
         rol: user.rol,
-        // ✅ CORRECCIÓN: Enviamos los permisos especiales al frontend
         registroContable: user.registroContable, 
         esPropietario: user.esPropietario,
         esPasswordProvisional: user.esPasswordProvisional 

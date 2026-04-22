@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('⏳ Insertando Unidades de Medida y Presentaciones...');
 
-  // 1. Insertar Unidades de Medida
   await prisma.unidadMedida.createMany({
     data: [
       { nombre: 'Unidad', estado: true },
@@ -13,10 +12,9 @@ async function main() {
       { nombre: 'Paquete', estado: true },
       { nombre: 'Galón', estado: true }
     ],
-    skipDuplicates: true, // Evita errores si lo ejecutas dos veces
+    skipDuplicates: true,
   });
 
-  // 2. Insertar Presentaciones
   await prisma.presentacion.createMany({
     data: [
       { nombre: 'Individual', estado: true },

@@ -5,72 +5,49 @@ const prisma = new PrismaClient();
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    // 1. Extraer los filtros reales de la URL
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const kitPeriod = req.query.kitPeriod as string || 'Año';
-    
-    // Fechas de inicio y fin para el año seleccionado
     const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
     const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
     const yearFilter = { gte: startOfYear, lte: endOfYear };
-
-    // =======================================================
-    // 📊 CONSULTAS REALES A LA BASE DE DATOS (PRISMA)
-    // =======================================================
-
-    // A. TARJETAS DE GESTIÓN (Reportes y Mantenimientos Reales)
     const totalReportes = await prisma.reporte.count({ where: { createdAt: yearFilter } });
     const totalMantenimientos = await prisma.reporte.count({
       where: { createdAt: yearFilter, proveedorMantenimientoId: { not: null } }
     });
-
-    // B. GRÁFICO CIRCULAR (Ciclos Reales y Efectividad)
     const ciclosExitosos = await prisma.cicloEsterilizacion.count({ where: { estadoGlobal: 'Finalizado', createdAt: yearFilter } });
     const ciclosFallidos = await prisma.cicloEsterilizacion.count({ where: { estadoGlobal: 'Cancelado', createdAt: yearFilter } });
     const totalCiclos = ciclosExitosos + ciclosFallidos;
     const efectividad = totalCiclos > 0 ? Math.round((ciclosExitosos / totalCiclos) * 100) : 100;
-
-    // C. BARRAS: RECHAZOS (Agrupados por tipo de daño real)
     const rejectionsDB = await prisma.reporte.groupBy({
       by: ['tipoDano'],
       where: { createdAt: yearFilter },
       _count: { _all: true }
     });
-    
     const rejectionsColors = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'];
-    const maxRejections = Math.max(...rejectionsDB.map(r => r._count._all), 1); // Para sacar porcentaje
-
+    const maxRejections = Math.max(...rejectionsDB.map(r => r._count._all), 1);
     const dataRejections = rejectionsDB.map((r, i) => ({
       name: r.tipoDano,
       value: r._count._all,
       percentage: Math.round((r._count._all / maxRejections) * 100),
       color: rejectionsColors[i % rejectionsColors.length]
     })).sort((a, b) => b.value - a.value); // Ordenados de mayor a menor
-
-    // D. LISTA: UTILIZACIÓN DE KITS (Top 5 kits más usados en Ciclos reales)
-    // Filtro de fecha especial para Kits (Mes vs Año)
     let kitDateFilter = yearFilter;
     if (kitPeriod === 'Mes') {
       const today = new Date();
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       kitDateFilter = { gte: startOfMonth, lte: endOfYear };
     }
-
     const topKitsDB = await prisma.cicloEsterilizacion.groupBy({
       by: ['kitId'],
       where: { 
         createdAt: kitDateFilter,
-        kitId: { not: null } // 👈 FILTRO CRUCIAL: Ignorar los ciclos de insumos que no tienen Kit
+        kitId: { not: null }
       },
       _count: { _all: true },
       orderBy: { _count: { kitId: 'desc' } },
       take: 5
     });
-
-    // Traer los nombres reales de los kits
     const kitsData = await Promise.all(topKitsDB.map(async (k) => {
-      // Como ya filtramos null arriba, sabemos que kitId es un número válido.
-      // Le decimos a TypeScript que estamos seguros de que no es null usando "as number"
       const kitInfo = await prisma.kit.findUnique({ 
         where: { id: k.kitId as number }, 
         include: { especialidad: true } // 👈 SE ASEGURA DE INCLUIR LA RELACIÓN
@@ -82,12 +59,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         status: k._count._all > 10 ? 'up' : 'down' // Simulación de tendencia
       };
     }));
-
-    // =======================================================
-    // ⚠️ DATOS SIMULADOS (Hasta crear tablas en BD)
-    // =======================================================
-    
-    // Tiempos por etapa (Necesitas tabla HistorialEtapas)
     const baseTime = year === 2025 ? 30 : 40; 
     const timeProcess = [
       { name: 'Recepción', min: 10, max: 45, avg: baseTime },
@@ -97,8 +68,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       { name: 'Rotulado', min: 15, max: 45, avg: baseTime + 2 },
       { name: 'Esterilizado', min: 25, max: 60, avg: baseTime + 15 },
     ];
-
-    // Repeticiones (Necesitas rastrear retrocesos en el ciclo)
     const repetitions = [
       { name: 'Recepción', value: year === 2025 ? 12 : 25 },
       { name: 'Lavado', value: year === 2025 ? 18 : 30 },
@@ -107,8 +76,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       { name: 'Rotulado', value: year === 2025 ? 22 : 40 },
       { name: 'Esterilizado', value: year === 2025 ? 5 : 10 },
     ];
-
-    // Consumos (Necesitas tabla TransaccionInsumo)
     const baseConsumo = req.query.insumo === 'Gasa' ? 50 : 150;
     const consumption = [
       { month: 'Ene', current: baseConsumo, previous: baseConsumo + 30 },
@@ -125,9 +92,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       { month: 'Dic', current: baseConsumo + 50, previous: baseConsumo },
     ];
 
-    // =======================================================
-    // 📤 RESPUESTA FINAL AL FRONTEND
-    // =======================================================
     return res.json({
       success: true,
       summary: {

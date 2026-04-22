@@ -10,28 +10,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Se añaden los parámetros 'nombre' y 'usuario' para cumplir con la plantilla exacta.
-// Tienen valores por defecto para que no se rompa tu código actual mientras ajustamos el controlador.
 export const enviarCorreoProvisional = async (
   email: string, 
   tempPass: string, 
   nombre: string = 'Usuario', 
   usuario: string = email
 ) => {
-  // Limpiamos el correo por si trae espacios invisibles que rompan Nodemailer
   const destino = email ? String(email).trim() : '';
-
   if (!destino) {
     throw new Error('El correo destino llegó vacío al servicio de emails.');
   }
-
-  // Asegúrate de tener esta variable en tu .env, o usará localhost por defecto
   const linkAcceso = process.env.FRONTEND_URL || 'http://localhost:5173';
 
   const mailOptions = {
     from: `"Central de Esterilización" <${process.env.SMTP_USER}>`,
-    to: destino, // <-- AQUÍ USAMOS LA VARIABLE LIMPIA PARA EVITAR EL ERROR "No recipients defined"
-    // Asunto exacto requerido por el documento
+    to: destino, 
     subject: 'Recuperación de contraseña – Acceso a la plataforma',
     html: `
       <div style="font-family: Arial, sans-serif; color: #333333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -60,7 +53,6 @@ export const enviarCorreoProvisional = async (
     console.log(`📧 Correo provisional enviado a: ${destino}`);
   } catch (error) {
     console.error('❌ Error al enviar el correo provisional:', error);
-    // El documento pide que si esto falla, se maneje el error en el controlador
     throw new Error('Error de SMTP');
   }
 };
@@ -68,7 +60,7 @@ export const enviarCorreoProvisional = async (
 export const enviarCorreoConfirmacionCambio = async (email: string) => {
   const destino = email ? String(email).trim() : '';
 
-  if (!destino) return; // Validación de seguridad
+  if (!destino) return;
 
   const mailOptions = {
     from: `"Central de Esterilización" <${process.env.SMTP_USER}>`,

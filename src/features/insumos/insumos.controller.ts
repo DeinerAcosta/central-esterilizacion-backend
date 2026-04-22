@@ -7,8 +7,6 @@ export const getListasSoporte = async (req: Request, res: Response) => {
   try {
     const unidades = await prisma.unidadMedida.findMany({ where: { estado: true } });
     const presentaciones = await prisma.presentacion.findMany({ where: { estado: true } });
-    
-    // Traemos todos los proveedores activos de la base de datos.
     const proveedores = await prisma.proveedor.findMany({
       where: { estado: true }
     });
@@ -24,18 +22,14 @@ export const getInsumos = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10; 
-    const skip = (page - 1) * limit;
-    
+    const skip = (page - 1) * limit;   
     const search = req.query.search as string || '';
     const estadoFiltro = req.query.estado as string;
-
     const whereClause: any = {
       nombre: { contains: search }
     };
-
     if (estadoFiltro === 'true') whereClause.estado = true;
     if (estadoFiltro === 'false') whereClause.estado = false;
-
     const [total, insumos] = await Promise.all([
       prisma.insumoQuirurgico.count({ where: whereClause }),
       prisma.insumoQuirurgico.findMany({
@@ -74,7 +68,6 @@ export const createInsumo = async (req: Request, res: Response) => {
       const count = await prisma.insumoQuirurgico.count();
       codigo = `INS-${count + 1}-${randomPart}`;
     }
-
     const nuevoInsumo = await prisma.insumoQuirurgico.create({
       data: {
         codigo,
@@ -82,7 +75,6 @@ export const createInsumo = async (req: Request, res: Response) => {
         descripcion,
         unidadMedidaId: Number(unidadMedidaId),
         presentacionId: Number(presentacionId),
-        // proveedorId: proveedorId ? Number(proveedorId) : null, <-- COMENTADO
         requiereEsterilizacion: Boolean(requiereEsterilizacion),
         tipoEsterilizacion: tipoEsterilizacion || null
       }

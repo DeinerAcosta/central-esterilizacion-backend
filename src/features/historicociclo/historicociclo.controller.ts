@@ -59,7 +59,6 @@ export const historicoCicloController = {
   getHistoricoPorKit: async (req: Request, res: Response) => {
     try {
       const { kitId } = req.params;
-
       if (!kitId) {
         return res.status(400).json({ success: false, msg: "ID del kit es requerido." });
       }

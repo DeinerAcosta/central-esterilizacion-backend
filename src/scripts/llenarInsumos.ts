@@ -5,10 +5,8 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Llenando tablas maestras de Insumos Quirúrgicos...");
 
-  // 1. Llenar Unidades de Medida
   const unidades = ['Unidad', 'Caja', 'Paquete', 'Galón', 'Litro', 'Mililitro', 'Gramo', 'Metro'];
   for (const nombre of unidades) {
-    // Usamos upsert para que si ya existe no lance error
     await prisma.unidadMedida.upsert({
       where: { nombre },
       update: {},
@@ -17,7 +15,6 @@ async function main() {
   }
   console.log("✅ Unidades de medida listas.");
 
-  // 2. Llenar Presentaciones
   const presentaciones = ['Bolsa', 'Frasco', 'Tarro', 'Tubo', 'Sobre', 'Ampolla', 'Aerosol', 'Rollo'];
   for (const nombre of presentaciones) {
     await prisma.presentacion.upsert({

@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// 1. Obtener lista paginada
 export const getMarcas = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -11,17 +10,14 @@ export const getMarcas = async (req: Request, res: Response) => {
     const estadoFiltro = req.query.estado as string;
     const limit = 10;
     const skip = (page - 1) * limit;
-
     const whereClause: any = {
       OR: [
         { nombre: { contains: search } },
         { codigo: { contains: search } }
       ]
     };
-
     if (estadoFiltro === 'true') whereClause.estado = true;
     if (estadoFiltro === 'false') whereClause.estado = false;
-
     const [total, marcas] = await Promise.all([
       prisma.marca.count({ where: whereClause }),
       prisma.marca.findMany({
@@ -39,15 +35,11 @@ export const getMarcas = async (req: Request, res: Response) => {
   }
 };
 
-// 2. Crear nueva marca
 export const createMarca = async (req: Request, res: Response) => {
   try {
     const { nombre, estado } = req.body;
-
-    // Generar código consecutivo MAR-001
     const total = await prisma.marca.count();
     const codigo = `MAR-${String(total + 1).padStart(3, '0')}`;
-
     const nuevaMarca = await prisma.marca.create({
       data: {
         codigo,
@@ -64,7 +56,6 @@ export const createMarca = async (req: Request, res: Response) => {
   }
 };
 
-// 3. Editar marca existente
 export const updateMarca = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -83,7 +74,6 @@ export const updateMarca = async (req: Request, res: Response) => {
   }
 };
 
-// 4. Activar o Inactivar
 export const toggleEstadoMarca = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

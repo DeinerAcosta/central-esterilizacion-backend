@@ -4,10 +4,6 @@ import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer'; 
 
 const prisma = new PrismaClient();
-
-/* ═══════════════════════════════════════════
-   CONFIGURACIÓN DE ENVÍO DE CORREOS
-   ═══════════════════════════════════════════ */
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
@@ -17,11 +13,9 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS || 'tu_password_de_app',  
   },
 });
-
 const enviarCorreoVerificacion = async (email: string, nombre: string, codigo: string) => {
   try {
-    const linkAcceso = process.env.FRONTEND_URL || 'http://localhost:5173/login'; 
-    
+    const linkAcceso = process.env.FRONTEND_URL || 'http://localhost:5173/login';  
     const mailOptions = {
       from: '"Central de Esterilización" <no-reply@esterilizacion.com>',
       to: email,
@@ -47,7 +41,6 @@ const enviarCorreoVerificacion = async (email: string, nombre: string, codigo: s
   }
 };
 
-// 1. OBTENER USUARIOS
 export const getUsuarios = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -55,7 +48,6 @@ export const getUsuarios = async (req: Request, res: Response) => {
     const estadoFiltro = req.query.estado as string;
     const limit = 10;
     const skip = (page - 1) * limit;
-
     const whereClause: any = {
       OR: [
         { nombre: { contains: search } },
@@ -63,11 +55,9 @@ export const getUsuarios = async (req: Request, res: Response) => {
         { email: { contains: search } },
         { codigo: { contains: search } } 
       ]
-    };
-    
+    }; 
     if (estadoFiltro === 'true') whereClause.estado = true;
     if (estadoFiltro === 'false') whereClause.estado = false;
-
     const [total, usuarios] = await Promise.all([
       prisma.usuario.count({ where: whereClause }),
       prisma.usuario.findMany({
@@ -82,8 +72,6 @@ export const getUsuarios = async (req: Request, res: Response) => {
         orderBy: [{ estado: 'desc' }, { createdAt: 'desc' }] 
       })
     ]);
-
-    // Mapear "foto" a "fotoUrl" para que el frontend no se rompa
     const usuariosFormateados = usuarios.map(u => ({
       ...u,
       fotoUrl: u.foto
@@ -96,33 +84,25 @@ export const getUsuarios = async (req: Request, res: Response) => {
   }
 };
 
-// 2. CREAR USUARIO
 export const createUsuario = async (req: Request, res: Response) => {
   try {
     let { nombre, apellido, empresa, cargo, email, password, rol, esPropietario, registroContable, estado, permisos } = req.body;
-
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({ msg: "La contraseña debe tener mínimo 8 caracteres, al menos una mayúscula, una minúscula y un número." });
     }
-
-    // 1️⃣ GENERAR CÓDIGO PÚBLICO (Para la grilla: USR-001)
     const totalUsuarios = await prisma.usuario.count();
     const codigoPublico = `USR-${String(totalUsuarios + 1).padStart(3, '0')}`;
-
-    // 2️⃣ GENERAR CÓDIGO DE VERIFICACIÓN PRIVADO (Para firmas/autorizaciones: 4821)
     let codigoPrivadoVerificacion = '';
     let isUnique = false;
     while (!isUnique) {
       const randomNum = Math.floor(Math.random() * 9000) + 1000; // De 1000 a 9999
       codigoPrivadoVerificacion = String(randomNum);
-      
       const existeCodigo = await prisma.usuario.findFirst({ where: { codigoVerificacion: codigoPrivadoVerificacion } });
       if (!existeCodigo) {
         isUnique = true;
       }
     }
-
     let usuarioGenerado = email.split('@')[0];
     let existeUsuario = await prisma.usuario.findUnique({ where: { usuario: usuarioGenerado } });
     let counter = 1;
@@ -131,9 +111,7 @@ export const createUsuario = async (req: Request, res: Response) => {
       existeUsuario = await prisma.usuario.findUnique({ where: { usuario: usuarioGenerado } });
       counter++;
     }
-
-    const hashed = await bcrypt.hash(password, 10);
-    
+    const hashed = await bcrypt.hash(password, 10);  
     const nuevo = await prisma.usuario.create({
       data: { 
         codigo: codigoPublico, 
@@ -152,10 +130,7 @@ export const createUsuario = async (req: Request, res: Response) => {
         permisos: permisos || {} 
       }
     });
-
-    // 📩 Disparar el correo indicando el PIN PRIVADO
     enviarCorreoVerificacion(email, nombre, codigoPrivadoVerificacion).catch(console.error);
-
     res.status(201).json({ msg: "Usuario creado correctamente. Se ha enviado el código de verificación al correo.", data: nuevo });
   } catch (error: any) {
     console.error("Error al crear usuario:", error); 
@@ -164,12 +139,10 @@ export const createUsuario = async (req: Request, res: Response) => {
   }
 };
 
-// 3. EDITAR USUARIO 
 export const updateUsuario = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { nombre, apellido, empresa, cargo, email, password, rol, esPropietario, registroContable, estado, permisos } = req.body;
-
     const dataToUpdate: any = {
         nombre,
         apellido,
@@ -182,7 +155,6 @@ export const updateUsuario = async (req: Request, res: Response) => {
         estado: Boolean(estado),
         permisos: permisos || {}
     };
-
     if (password && password.trim() !== '') {
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
         if (!passwordRegex.test(password)) {
@@ -190,12 +162,10 @@ export const updateUsuario = async (req: Request, res: Response) => {
         }
         dataToUpdate.password = await bcrypt.hash(password, 10);
     }
-
     await prisma.usuario.update({
         where: { id: Number(id) },
         data: dataToUpdate
     });
-
     res.json({ msg: "Usuario actualizado correctamente" });
   } catch (error: any) {
     console.error("Error al actualizar usuario:", error);
@@ -204,17 +174,14 @@ export const updateUsuario = async (req: Request, res: Response) => {
   }
 };
 
-// 4. CAMBIAR ESTADO 
 export const toggleEstadoUsuario = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
-
     await prisma.usuario.update({
       where: { id: Number(id) },
       data: { estado: Boolean(estado) }
     });
-
     res.json({ msg: "Estado actualizado correctamente" });
   } catch (error) {
     console.error("Error al cambiar estado:", error);
@@ -222,18 +189,15 @@ export const toggleEstadoUsuario = async (req: Request, res: Response) => {
   }
 };
 
-// 5. VALIDAR PIN DE FIRMA ELECTRÓNICA (NUEVO)
 export const validarPin = async (req: Request, res: Response) => {
   try {
-    const { pin } = req.body;
-    
+    const { pin } = req.body;   
     const usuario = await prisma.usuario.findFirst({
       where: { 
         codigoVerificacion: pin,
         estado: true 
       }
     });
-
     if (usuario) {
       return res.json({ 
         valid: true, 

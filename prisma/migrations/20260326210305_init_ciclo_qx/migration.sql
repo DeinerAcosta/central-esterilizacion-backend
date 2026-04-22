@@ -1,4 +1,3 @@
--- CreateTable
 CREATE TABLE `Usuario` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -26,7 +25,6 @@ CREATE TABLE `Usuario` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Especialidad` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -38,7 +36,6 @@ CREATE TABLE `Especialidad` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Subespecialidad` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -50,7 +47,6 @@ CREATE TABLE `Subespecialidad` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `TipoSubespecialidad` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -62,7 +58,6 @@ CREATE TABLE `TipoSubespecialidad` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Marca` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -74,7 +69,6 @@ CREATE TABLE `Marca` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `UnidadMedida` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nombre` VARCHAR(191) NOT NULL,
@@ -84,7 +78,6 @@ CREATE TABLE `UnidadMedida` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Presentacion` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nombre` VARCHAR(191) NOT NULL,
@@ -94,7 +87,6 @@ CREATE TABLE `Presentacion` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `InsumoQuirurgico` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -114,7 +106,6 @@ CREATE TABLE `InsumoQuirurgico` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Proveedor` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -132,7 +123,6 @@ CREATE TABLE `Proveedor` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Sede` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nombre` VARCHAR(191) NOT NULL,
@@ -146,7 +136,6 @@ CREATE TABLE `Sede` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Quirofano` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -158,7 +147,6 @@ CREATE TABLE `Quirofano` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Kit` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigoKit` VARCHAR(191) NOT NULL,
@@ -176,7 +164,6 @@ CREATE TABLE `Kit` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `InstrumentoEnKit` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `kitId` INTEGER NOT NULL,
@@ -185,7 +172,6 @@ CREATE TABLE `InstrumentoEnKit` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `HojaVidaInstrumento` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -234,7 +220,6 @@ CREATE TABLE `HojaVidaInstrumento` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `HistorialTraslado` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `instrumentoId` INTEGER NULL,
@@ -248,7 +233,6 @@ CREATE TABLE `HistorialTraslado` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `Reporte` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigo` VARCHAR(191) NOT NULL,
@@ -268,7 +252,6 @@ CREATE TABLE `Reporte` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `CicloEsterilizacion` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `codigoCiclo` VARCHAR(191) NOT NULL,
@@ -293,7 +276,6 @@ CREATE TABLE `CicloEsterilizacion` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `EscaneoInstrumento` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `cicloId` INTEGER NOT NULL,
@@ -305,92 +287,33 @@ CREATE TABLE `EscaneoInstrumento` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- AddForeignKey
 ALTER TABLE `Subespecialidad` ADD CONSTRAINT `Subespecialidad_especialidadId_fkey` FOREIGN KEY (`especialidadId`) REFERENCES `Especialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `TipoSubespecialidad` ADD CONSTRAINT `TipoSubespecialidad_subespecialidadId_fkey` FOREIGN KEY (`subespecialidadId`) REFERENCES `Subespecialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `InsumoQuirurgico` ADD CONSTRAINT `InsumoQuirurgico_unidadMedidaId_fkey` FOREIGN KEY (`unidadMedidaId`) REFERENCES `UnidadMedida`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `InsumoQuirurgico` ADD CONSTRAINT `InsumoQuirurgico_presentacionId_fkey` FOREIGN KEY (`presentacionId`) REFERENCES `Presentacion`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `InsumoQuirurgico` ADD CONSTRAINT `InsumoQuirurgico_proveedorId_fkey` FOREIGN KEY (`proveedorId`) REFERENCES `Proveedor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Quirofano` ADD CONSTRAINT `Quirofano_sedeId_fkey` FOREIGN KEY (`sedeId`) REFERENCES `Sede`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Kit` ADD CONSTRAINT `Kit_especialidadId_fkey` FOREIGN KEY (`especialidadId`) REFERENCES `Especialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Kit` ADD CONSTRAINT `Kit_subespecialidadId_fkey` FOREIGN KEY (`subespecialidadId`) REFERENCES `Subespecialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Kit` ADD CONSTRAINT `Kit_sedeId_fkey` FOREIGN KEY (`sedeId`) REFERENCES `Sede`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `InstrumentoEnKit` ADD CONSTRAINT `InstrumentoEnKit_kitId_fkey` FOREIGN KEY (`kitId`) REFERENCES `Kit`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `InstrumentoEnKit` ADD CONSTRAINT `InstrumentoEnKit_instrumentoId_fkey` FOREIGN KEY (`instrumentoId`) REFERENCES `HojaVidaInstrumento`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_especialidadId_fkey` FOREIGN KEY (`especialidadId`) REFERENCES `Especialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_subespecialidadId_fkey` FOREIGN KEY (`subespecialidadId`) REFERENCES `Subespecialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_tipoId_fkey` FOREIGN KEY (`tipoId`) REFERENCES `TipoSubespecialidad`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_proveedorId_fkey` FOREIGN KEY (`proveedorId`) REFERENCES `Proveedor`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_kitId_fkey` FOREIGN KEY (`kitId`) REFERENCES `Kit`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_sedeId_fkey` FOREIGN KEY (`sedeId`) REFERENCES `Sede`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_marcaId_fkey` FOREIGN KEY (`marcaId`) REFERENCES `Marca`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HojaVidaInstrumento` ADD CONSTRAINT `HojaVidaInstrumento_propietarioId_fkey` FOREIGN KEY (`propietarioId`) REFERENCES `Usuario`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HistorialTraslado` ADD CONSTRAINT `HistorialTraslado_instrumentoId_fkey` FOREIGN KEY (`instrumentoId`) REFERENCES `HojaVidaInstrumento`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HistorialTraslado` ADD CONSTRAINT `HistorialTraslado_kitId_fkey` FOREIGN KEY (`kitId`) REFERENCES `Kit`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HistorialTraslado` ADD CONSTRAINT `HistorialTraslado_sedeOrigenId_fkey` FOREIGN KEY (`sedeOrigenId`) REFERENCES `Sede`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `HistorialTraslado` ADD CONSTRAINT `HistorialTraslado_sedeDestinoId_fkey` FOREIGN KEY (`sedeDestinoId`) REFERENCES `Sede`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Reporte` ADD CONSTRAINT `Reporte_instrumentoId_fkey` FOREIGN KEY (`instrumentoId`) REFERENCES `HojaVidaInstrumento`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Reporte` ADD CONSTRAINT `Reporte_reportadoPorId_fkey` FOREIGN KEY (`reportadoPorId`) REFERENCES `Usuario`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `Reporte` ADD CONSTRAINT `Reporte_proveedorMantenimientoId_fkey` FOREIGN KEY (`proveedorMantenimientoId`) REFERENCES `Proveedor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `CicloEsterilizacion` ADD CONSTRAINT `CicloEsterilizacion_kitId_fkey` FOREIGN KEY (`kitId`) REFERENCES `Kit`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `CicloEsterilizacion` ADD CONSTRAINT `CicloEsterilizacion_responsableActualId_fkey` FOREIGN KEY (`responsableActualId`) REFERENCES `Usuario`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `EscaneoInstrumento` ADD CONSTRAINT `EscaneoInstrumento_cicloId_fkey` FOREIGN KEY (`cicloId`) REFERENCES `CicloEsterilizacion`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `EscaneoInstrumento` ADD CONSTRAINT `EscaneoInstrumento_instrumentoId_fkey` FOREIGN KEY (`instrumentoId`) REFERENCES `HojaVidaInstrumento`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

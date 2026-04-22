@@ -22,11 +22,9 @@ export const getTiposSub = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
     const search = req.query.search as string || '';
     const estadoFiltro = req.query.estado as string;
-
     const whereClause: any = { nombre: { contains: search } };
     if (estadoFiltro === 'true') whereClause.estado = true;
     if (estadoFiltro === 'false') whereClause.estado = false;
-
     const [total, registros] = await Promise.all([
       prisma.tipoSubespecialidad.count({ where: whereClause }),
       prisma.tipoSubespecialidad.findMany({
@@ -51,15 +49,12 @@ export const getTiposSub = async (req: Request, res: Response) => {
 export const createTipoSub = async (req: Request, res: Response) => {
   try {
     const { nombre, subespecialidadId } = req.body;
-
     if (!/^[a-zA-Z\sáéíóúÁÉÍÓÚñÑ]+$/.test(nombre)) {
       return res.status(400).json({ msg: "El nombre solo debe contener letras" });
     }
-
     const last = await prisma.tipoSubespecialidad.findFirst({ orderBy: { id: 'desc' } });
     const nextNum = last ? last.id + 1 : 1;
     const codigoGenerado = `TSUB-${String(nextNum).padStart(3, '0')}`;
-
     const nuevo = await prisma.tipoSubespecialidad.create({
       data: { codigo: codigoGenerado, nombre, subespecialidadId: Number(subespecialidadId) }
     });
@@ -73,7 +68,6 @@ export const updateTipoSub = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { nombre, subespecialidadId } = req.body;
-
     if (!/^[a-zA-Z\sáéíóúÁÉÍÓÚñÑ]+$/.test(nombre)) {
         return res.status(400).json({ msg: "El nombre solo debe contener letras" });
     }
@@ -92,7 +86,6 @@ export const toggleEstadoTipoSub = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
-
     await prisma.tipoSubespecialidad.update({
       where: { id: Number(id) },
       data: { estado: Boolean(estado) }

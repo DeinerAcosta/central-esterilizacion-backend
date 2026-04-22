@@ -3,9 +3,7 @@ import { getProveedores, createProveedor, updateProveedor, toggleEstadoProveedor
 
 const router = Router();
 
-// 👈 NUEVA RUTA: Debe ir ANTES de las rutas con /:id o / para evitar conflictos
 router.get('/listas', getListasSoporte); 
-
 router.get('/', getProveedores);
 router.post('/', createProveedor);
 router.put('/:id', updateProveedor);

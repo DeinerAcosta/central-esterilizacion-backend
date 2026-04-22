@@ -4,37 +4,24 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export const trazabilidadController = {
-  
-  // 1. Obtener Listado de Trazabilidad (Asignaciones o Ciclos)
   getTrazabilidad: async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = 10;
       const skip = (page - 1) * limit;
-      
-      // 🚀 CAPTURAMOS TODOS LOS FILTROS EXACTOS DEL FRONTEND
       const tab = req.query.tab as string || 'asignaciones';
       const especialidadId = req.query.especialidadId as string;
       const subespecialidadId = req.query.subespecialidadId as string;
-      const kitId = req.query.kitId as string;     // Nuevo filtro
-      const sedeId = req.query.sedeId as string;   // Nuevo filtro (reemplaza a Quirófano global)
+      const kitId = req.query.kitId as string; 
+      const sedeId = req.query.sedeId as string; 
       const fechaDesde = req.query.fechaDesde as string;
       const fechaHasta = req.query.fechaHasta as string;
-
-      // Inicializamos las condiciones base de Prisma
       const whereClause: any = {};
-
-      // Filtro 1: Pestaña actual (Asignaciones vs Historial)
       if (tab === 'asignaciones') {
-        // Asignaciones son ciclos que fueron enviados a Distribución y aún no se aprueban
         whereClause.destinoSet = { contains: 'Distribución' };
-        // whereClause.estadoGlobal = { not: 'Entregado' }; // COMENTADO PARA PRUEBAS: Descomenta en producción
       } else {
-        // Historial de ciclos
         whereClause.estadoGlobal = { in: ['Finalizado', 'Cancelado', 'Entregado'] };
       }
-
-      // Filtro 2: Rangos de Fechas
       if (fechaDesde || fechaHasta) {
         whereClause.updatedAt = {};
         if (fechaDesde) {
@@ -44,25 +31,17 @@ export const trazabilidadController = {
           whereClause.updatedAt.lte = new Date(`${fechaHasta}T23:59:59.999Z`);
         }
       }
-
-      // Filtro 3: Especialidad y Subespecialidad (Relación anidada con KIT)
       if (especialidadId || subespecialidadId) {
         whereClause.kit = {};
         if (especialidadId) whereClause.kit.especialidadId = Number(especialidadId);
         if (subespecialidadId) whereClause.kit.subespecialidadId = Number(subespecialidadId);
       }
-
-      // Filtro 4: Kit Independiente
       if (kitId) {
         whereClause.kitId = Number(kitId);
       }
-
-      // Filtro 5: Sede Independiente
       if (sedeId) {
         whereClause.sedeDestinoId = Number(sedeId);
       }
-
-      // Ejecutamos las consultas a la Base de Datos
       const [total, ciclos] = await Promise.all([
         prisma.cicloEsterilizacion.count({ where: whereClause }),
         prisma.cicloEsterilizacion.findMany({
@@ -78,8 +57,6 @@ export const trazabilidadController = {
           orderBy: { updatedAt: 'desc' }
         })
       ]);
-
-      // Mapear los datos para el Frontend
       const formattedData = ciclos.map(c => ({
         id: c.id,
         fecha: new Date(c.updatedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
@@ -107,23 +84,18 @@ export const trazabilidadController = {
     }
   },
 
-  // 2. Obtener Instrumentos de una Asignación (Para Aprobar)
   getInstrumentosAsignacion: async (req: Request, res: Response) => {
     try {
       const { cicloId } = req.params;
-
       const escaneos = await prisma.escaneoInstrumento.findMany({
         where: { cicloId: Number(cicloId) },
         include: { instrumento: true }
       });
-
       const instrumentosUnicos = Array.from(new Map(escaneos.map((e: any) => [e.instrumentoId, e.instrumento])).values());
-
       const data = instrumentosUnicos.map((inst: any) => ({
         id: inst.id,
         nombre: inst.nombre,
         codigo: inst.codigo,
-        // Buscamos la foto en la BD
         imagen: inst.fotoUrl || inst.imagen || inst.foto || null 
       }));
 
@@ -134,32 +106,26 @@ export const trazabilidadController = {
     }
   },
 
-  // 3. Guardar las aprobaciones
   aprobarAsignacion: async (req: Request, res: Response) => {
     try {
       const { cicloId } = req.params;
       const { instrumentos } = req.body; 
-
       if (!instrumentos || !Array.isArray(instrumentos)) {
           return res.status(400).json({ success: false, message: 'Formato de instrumentos inválido' });
       }
-
       await prisma.$transaction(async (tx) => {
         for (const inst of instrumentos) {
-          const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';
-          
+          const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';         
           await tx.hojaVidaInstrumento.update({
             where: { id: Number(inst.id) },
             data: { estadoActual: nuevoEstado }
           });
         }
-
         await tx.cicloEsterilizacion.update({
           where: { id: Number(cicloId) },
           data: { estadoGlobal: 'Entregado' }
         });
       });
-
       return res.json({ success: true, message: 'Aprobación guardada correctamente' });
     } catch (error) {
       console.error('Error aprobando asignación:', error);
@@ -167,11 +133,9 @@ export const trazabilidadController = {
     }
   },
 
-  // 4. Obtener Detalles Completos de Trazabilidad de un Ciclo
   getDetallesCiclo: async (req: Request, res: Response) => {
     try {
       const { cicloId } = req.params;
-
       const ciclo = await prisma.cicloEsterilizacion.findUnique({
         where: { id: Number(cicloId) },
         include: {
@@ -181,30 +145,21 @@ export const trazabilidadController = {
           escaneos: { include: { instrumento: true } }
         }
       });
-
       if (!ciclo) return res.status(404).json({ success: false, message: 'Ciclo no encontrado' });
-
       const fechaInicio = new Date(ciclo.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
       const fechaFin = new Date(ciclo.updatedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
-
       const c = ciclo as any;
-
       const escaneosUnicos = Array.from(new Map(c.escaneos.map((e: any) => [e.instrumentoId, e])).values()) as any[];
-      
-      // Función auxiliar para inyectar la imagen al enviar el instrumento a la tabla de React
       const mapearInstrumentoConFoto = (e: any) => ({
         ...e.instrumento,
         imagen: e.instrumento.fotoUrl || e.instrumento.imagen || e.instrumento.foto || null
       });
-
       const instrumentosBuenos = escaneosUnicos
         .filter((e: any) => e.instrumento.estadoActual === 'Habilitado' || e.instrumento.estadoActual === 'Esterilizado')
-        .map(mapearInstrumentoConFoto);
-        
+        .map(mapearInstrumentoConFoto);        
       const instrumentosMalos = escaneosUnicos
         .filter((e: any) => e.instrumento.estadoActual === 'Deshabilitado' || e.instrumento.estadoActual === 'Reproceso')
         .map(mapearInstrumentoConFoto);
-
       const timeline = [
         { label: 'Recepción', time: fechaInicio, completed: true },
         { label: 'Lavado', time: fechaInicio, completed: c.etapaActual >= 1 },
@@ -220,7 +175,6 @@ export const trazabilidadController = {
           highlight: true 
         }
       ];
-
       const data = {
         codigoCiclo: c.codigoCiclo || `CQX-${c.id.toString().padStart(5, '0')}`,
         kit: `${c.kit?.codigoKit || '00'} - ${c.kit?.especialidad?.nombre || 'General'}`,
@@ -229,14 +183,11 @@ export const trazabilidadController = {
         lote: c.lote || '-',
         responsable: c.responsable?.nombre ? `${c.responsable.nombre} ${c.responsable.apellido}` : 'Sistema',
         evidencia: c.indicadorUrl,
-        
-        // 🚀 NUEVOS CAMPOS: Datos reales extraídos de la BD para la tabla de React
         fechaReal: fechaFin,
         espReal: c.kit?.especialidad?.nombre || 'N/A',
         subReal: c.kit?.subespecialidad?.nombre || 'N/A',
         tipoReal: c.kit?.tipoSubespecialidad || 'N/A',
         codigoKitReal: c.kit?.codigoKit || 'N/A',
-
         instrumentosBuenos,
         instrumentosMalos,
         timeline

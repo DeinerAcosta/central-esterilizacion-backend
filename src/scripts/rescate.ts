@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 
 async function rescatarUsuarios() {
   console.log("Iniciando rescate de usuarios antiguos...");
-
   const nuevaPassword = 'Colombia.2026*';
   const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
   const adminUpdate = await prisma.usuario.updateMany({
@@ -18,7 +17,6 @@ async function rescatarUsuarios() {
       esPasswordProvisional: false
     }
   });
-
   const operadorUpdate = await prisma.usuario.updateMany({
     where: { email: 'admin@hospital.com' },
     data: { 

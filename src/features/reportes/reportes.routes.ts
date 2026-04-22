@@ -6,14 +6,11 @@ import {
   gestionarReporte, 
   finalizarReporte, 
   validarPin 
-} from './reportes.controller'; // Ajusta la ruta según tu estructura
+} from './reportes.controller'; 
 
 const router = Router();
-
-// Configuración básica para guardar archivos adjuntos
 const upload = multer({ dest: 'uploads/' });
 
-// Rutas del módulo
 router.get('/', getReportes);
 router.post('/validar-pin', validarPin);
 router.post('/', upload.fields([{ name: 'evidencia', maxCount: 1 }]), createReporte);

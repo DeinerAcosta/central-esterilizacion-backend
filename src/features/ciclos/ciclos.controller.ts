@@ -4,7 +4,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export const ciclosController = {
-  // 1. Obtener el ciclo activo de un KIT (Si se necesita consultar manualmente)
   obtenerCicloActivo: async (req: Request, res: Response) => {
     try {
       const { kitId } = req.params;
@@ -31,7 +30,6 @@ export const ciclosController = {
     }
   },
 
-  // 2. Avanzar de etapa (Dinámico, validando el Ciclo ID)
   avanzarEtapa: async (req: Request, res: Response) => {
     try {
       const { cicloId, responsableId, nuevaEtapa, tipoSellado } = req.body;
@@ -40,7 +38,6 @@ export const ciclosController = {
         return res.status(400).json({ success: false, message: 'No hay ciclo activo para avanzar' });
       }
 
-      // Actualizar la etapa del ciclo existente
       const ciclo = await prisma.cicloEsterilizacion.update({
         where: { id: Number(cicloId) },
         data: { 
@@ -57,12 +54,9 @@ export const ciclosController = {
     }
   },
 
-  // 3. Escanear un instrumento (Detección Automática de Kit y Ciclo)
   escanearInstrumento: async (req: Request, res: Response) => {
     try {
       const { cicloId, codigoInstrumento, etapa, estadoFisico, responsableId } = req.body;
-
-      // Buscar el instrumento real y traer la info de su KIT
       const instrumento = await prisma.hojaVidaInstrumento.findUnique({
         where: { codigo: codigoInstrumento },
         include: { kit: { include: { especialidad: true, subespecialidad: true } } }
@@ -77,14 +71,10 @@ export const ciclosController = {
 
       let cicloActivo = null;
 
-      // DETECCIÓN AUTOMÁTICA DEL KIT: Si no hay cicloId en la petición, es el primer escaneo
       if (!cicloId) {
-        // Revisamos si alguien más ya había iniciado un ciclo para este Kit hoy
         cicloActivo = await prisma.cicloEsterilizacion.findFirst({
           where: { kitId: instrumento.kitId, estadoGlobal: 'En Curso' }
         });
-
-        // Si no existe un ciclo, lo creamos automáticamente para el Kit detectado
         if (!cicloActivo) {
           if (!responsableId) {
             return res.status(400).json({ success: false, message: 'Falta la firma electrónica (PIN) para iniciar' });
@@ -100,7 +90,6 @@ export const ciclosController = {
           });
         }
       } else {
-        // Si ya había un cicloId, lo buscamos para asegurarnos de que existe
         cicloActivo = await prisma.cicloEsterilizacion.findUnique({ 
           where: { id: Number(cicloId) } 
         });
@@ -110,7 +99,6 @@ export const ciclosController = {
         }
       }
 
-      // Guardar el escaneo en la BD amarrado al ciclo correcto
       const escaneo = await prisma.escaneoInstrumento.create({
         data: {
           cicloId: cicloActivo.id,
@@ -121,7 +109,6 @@ export const ciclosController = {
         include: { instrumento: true }
       });
 
-      // Devolvemos todo estructurado para que React actualice la pantalla visualmente
       return res.json({ 
         success: true, 
         escaneo, 
@@ -134,21 +121,15 @@ export const ciclosController = {
     }
   },
 
-  // 4. Finalizar el Ciclo (CON AUTOMATIZACIÓN DE INSTRUMENTOS SPRINT 3)
   finalizarCiclo: async (req: Request, res: Response) => {
     try {
       const { cicloId } = req.params;
-      
-      // Recibimos absolutamente todos los campos del FormData de React
       const { 
         tipoEsterilizacion, autoclaveTipo, destinoSet, sedeDestino, quirofanoDestino, instrumentadorDestino, 
         tipoEmpaque, cintaTest, quimicoInterno, lote, valorIndicador,
         almacEstado, almacFechaIngreso, almacFechaVencimiento, almacUbicacion, almacObservacion
       } = req.body;
-
       const indicadorUrl = req.file ? `/uploads/evidencias/${req.file.filename}` : null;
-
-      // 1. CERRAR EL CICLO Y GUARDAR LOS DATOS FINALES
       const cicloFinalizado = await prisma.cicloEsterilizacion.update({
         where: { id: Number(cicloId) },
         data: {
@@ -157,23 +138,17 @@ export const ciclosController = {
           tipoEsterilizacion,
           autoclaveTipo,
           destinoSet,
-          
-          // Datos de Rotulado
           tipoSellado: tipoEmpaque, 
           cintaTest: cintaTest === 'true', 
           quimicoInterno: quimicoInterno === 'true',
           lote, 
           valorIndicador,
           ...(indicadorUrl && { indicadorUrl }),
-
-          // Datos dinámicos de Distribución
           ...(destinoSet?.includes('Distribución') && {
             sedeDestinoId: sedeDestino ? Number(sedeDestino) : null,
             quirofanoDestino,
             instrumentadorDestino
           }),
-
-          // Datos dinámicos de Almacenamiento
           ...(destinoSet?.includes('Almacenamiento') && {
             almacEstado,
             almacFechaIngreso,
@@ -183,13 +158,10 @@ export const ciclosController = {
           })
         }
       });
-
-      // Reglas Sprint 3...
       const escaneos = await prisma.escaneoInstrumento.findMany({
         where: { cicloId: Number(cicloId) },
         select: { instrumentoId: true, estadoFisico: true }
       });
-
       const idsMalEstado = escaneos.filter(e => e.estadoFisico === 'Mal estado').map(e => e.instrumentoId);
       const idsBuenEstado = escaneos.filter(e => e.estadoFisico === 'Buen estado' && !idsMalEstado.includes(e.instrumentoId)).map(e => e.instrumentoId);
 
@@ -219,7 +191,6 @@ export const ciclosController = {
     }
   },
 
-  // 5. Obtener conteo de kits por etapa en tiempo real (Para el menú lateral)
   obtenerConteoEtapas: async (req: Request, res: Response) => {
     try {
       const conteosBD = await prisma.cicloEsterilizacion.groupBy({
@@ -250,27 +221,17 @@ export const ciclosController = {
     }
   },
 
-  // 6. Obtener histórico de instrumentos por KIT (Para el Dashboard)
   obtenerHistoricoKit: async (req: Request, res: Response) => {
     try {
       const { kitId } = req.params;
-      
-      // 1. Buscamos los instrumentos que pertenecen a este kit
       const instrumentos = await prisma.hojaVidaInstrumento.findMany({
         where: { kitId: Number(kitId) }
       });
-
-      // Extraemos solo los IDs de esos instrumentos
       const idsInstrumentos = instrumentos.map(i => i.id);
-
-      // 2. Buscamos todos los escaneos que coincidan con esos instrumentos
       const todosLosEscaneos = await prisma.escaneoInstrumento.findMany({
         where: { instrumentoId: { in: idsInstrumentos } }
       });
-
-      // 3. Cruzamos la información de forma segura (A prueba de TypeScript)
       const dataFormateada = instrumentos.map(inst => {
-        // Filtramos los escaneos que son exclusivamente de este instrumento
         const historial = todosLosEscaneos.filter((e: any) => e.instrumentoId === inst.id);
 
         return {
@@ -293,9 +254,6 @@ export const ciclosController = {
     }
   },
 
-  // =========================================================================
-  // 7. OBTENER DATOS PARA EL TABLERO KANBAN EN TIEMPO REAL
-  // =========================================================================
   getTableroControl: async (req: Request, res: Response) => {
     try {
       const ciclosActivos = await prisma.cicloEsterilizacion.findMany({

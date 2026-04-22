@@ -25,7 +25,6 @@ const PORT = 4000;
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir peticiones locales (tu PC) y cualquier dominio de Vercel
     if (!origin || origin.startsWith('http://localhost') || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -37,10 +36,6 @@ app.use(cors({
 
 app.use(express.json()); 
 app.use('/uploads', express.static('uploads'));
-
-// ==========================================
-// REGISTRO DE RUTAS
-// ==========================================
 app.use('/api/auth', authRoutes);
 app.use('/api/insumos', insumosRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
@@ -60,19 +55,15 @@ app.use('/api/trazabilidad', trazabilidadRoutes);
 app.use('/api/historico-ciclo', historicoCicloRoutes);
 app.use('/api/insumosqx', insumosQxRoutes);
 app.use('/api/almacenamiento', almacenamientoRoutes); // <-- NUEVA RUTA DE ALMACENAMIENTO
-
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
 });
-
 app.listen(PORT, () => {
     console.log(`✅ Backend corriendo y escuchando en http://localhost:${PORT}`);
 });
-
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Rechazo no manejado en:', promise, 'razón:', reason);
 });
-
 process.on('uncaughtException', (error) => {
     console.error('❌ Excepción no capturada:', error);
 });

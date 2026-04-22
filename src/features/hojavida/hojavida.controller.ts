@@ -3,16 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// ==========================================
-// 1. OBTENER HOJAS DE VIDA (Para la grilla)
-// ==========================================
 export const getHojasVida = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
     const search = req.query.search as string || '';
-
     const whereClause: any = {
       OR: [
         { codigo: { contains: search } },
@@ -22,11 +18,9 @@ export const getHojasVida = async (req: Request, res: Response) => {
         { referencia: { contains: search } }
       ]
     };
-
     if (req.query.estado) whereClause.estado = String(req.query.estado);
     if (req.query.especialidadId) whereClause.especialidadId = Number(req.query.especialidadId);
     if (req.query.subespecialidadId) whereClause.subespecialidadId = Number(req.query.subespecialidadId);
-
     const [total, hojas] = await Promise.all([
       prisma.hojaVidaInstrumento.count({ where: whereClause }),
       prisma.hojaVidaInstrumento.findMany({
@@ -54,22 +48,16 @@ export const getHojasVida = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 2. CREAR HOJA DE VIDA
-// ==========================================
 export const createHojaVida = async (req: Request, res: Response) => {
   try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-    
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;   
     const fotoUrl = files?.['foto'] ? `/uploads/${files['foto'][0].filename}` : null;
     const garantiaUrl = files?.['garantia'] ? `/uploads/${files['garantia'][0].filename}` : null;
     const registroInvimaUrl = files?.['registroInvimaDoc'] ? `/uploads/${files['registroInvimaDoc'][0].filename}` : null;
     const codigoInstrumentoUrl = files?.['codigoInstrumentoDoc'] ? `/uploads/${files['codigoInstrumentoDoc'][0].filename}` : null;
-
     if (!fotoUrl || !garantiaUrl || !registroInvimaUrl || !codigoInstrumentoUrl) {
       return res.status(400).json({ msg: "Faltan archivos adjuntos obligatorios." });
     }
-
     const {
       nombre, especialidadId, subespecialidadId, tipoId, proveedorId,
       fabricante, marcaId, referencia, paisOrigen, numeroSerie, registroInvima,
@@ -81,21 +69,16 @@ export const createHojaVida = async (req: Request, res: Response) => {
     if (!nombre || !especialidadId || !subespecialidadId || !numeroSerie || !registroInvima || !proveedorId || !material || !esterilizacion || !frecuenciaMantenimiento || !propietarioId) {
       return res.status(400).json({ msg: "Faltan campos obligatorios en el formulario." });
     }
-
     const esp = await prisma.especialidad.findUnique({ where: { id: Number(especialidadId) } });
     const sub = await prisma.subespecialidad.findUnique({ where: { id: Number(subespecialidadId) } });
     const tipo = tipoId ? await prisma.tipoSubespecialidad.findUnique({ where: { id: Number(tipoId) } }) : null;
-
     if (!esp || !sub) return res.status(400).json({ msg: "Especialidad o subespecialidad inválida" });
-
-    // Generación de código
     const pEsp = esp.nombre.substring(0, 2).toUpperCase();
     const pSub = sub.nombre.substring(0, 2).toUpperCase();
     const pTip = tipo ? tipo.nombre.substring(0, 2).toUpperCase() : '--';
     const prefijo = `${pEsp}${pSub}${pTip}`;
     const count = await prisma.hojaVidaInstrumento.count();
     const codigoGenerado = `${prefijo}-${String(count + 1).padStart(3, '0')}`; 
-
     const nuevaHoja = await prisma.hojaVidaInstrumento.create({
       data: {
         codigo: codigoGenerado,
@@ -131,16 +114,12 @@ export const createHojaVida = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 3. REGISTRAR INFORMACIÓN CONTABLE
-// ==========================================
 export const registrarContable = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { fechaCompra, costoAdquisicion, iva, numeroFactura, vidaUtil } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const facturaUrl = files?.['facturaDoc'] ? `/uploads/${files['facturaDoc'][0].filename}` : null;
-
     const hoja = await prisma.hojaVidaInstrumento.update({
       where: { id: Number(id) },
       data: {
@@ -160,16 +139,12 @@ export const registrarContable = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 4. CAMBIAR ESTADO RÁPIDO
-// ==========================================
 export const patchEstadoHojaVida = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { estado } = req.body; 
     const inst = await prisma.hojaVidaInstrumento.findUnique({ where: { id: Number(id) }});
     if (!inst) return res.status(404).json({ msg: "No encontrado" });
-
     const hoja = await prisma.hojaVidaInstrumento.update({
       where: { id: Number(id) },
       data: { estado: estado, estadoActual: estado }
@@ -180,9 +155,6 @@ export const patchEstadoHojaVida = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 5. OBTENER INVENTARIO AGRUPADO
-// ==========================================
 export const getInventario = async (req: Request, res: Response) => {
   try {
     const { especialidadId, subespecialidadId, tipoId, search } = req.query;
@@ -228,35 +200,27 @@ export const getInventario = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 6. OBTENER CONTROL DE BAJAS
-// ==========================================
 export const getControlBajas = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
     const { fechaDesde, fechaHasta, especialidadId, subespecialidadId, search } = req.query;
-
     const whereClause: any = { estado: "De baja" };
-
     if (especialidadId) whereClause.especialidadId = Number(especialidadId);
     if (subespecialidadId) whereClause.subespecialidadId = Number(subespecialidadId);
-    
     if (search) {
       whereClause.OR = [
         { nombre: { contains: String(search) } },
         { codigo: { contains: String(search) } }
       ];
     }
-
     if (fechaDesde && fechaHasta) {
       whereClause.updatedAt = {
         gte: new Date(`${fechaDesde}T00:00:00.000Z`),
         lte: new Date(`${fechaHasta}T23:59:59.999Z`)
       };
     }
-
     const [total, bajas] = await Promise.all([
       prisma.hojaVidaInstrumento.count({ where: whereClause }),
       prisma.hojaVidaInstrumento.findMany({
@@ -274,18 +238,13 @@ export const getControlBajas = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 7. EDITAR HOJA DE VIDA
-// ==========================================
 export const updateHojaVida = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const data = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-
     const instExistente = await prisma.hojaVidaInstrumento.findUnique({ where: { id: Number(id) } });
     if (!instExistente) return res.status(404).json({ msg: "No encontrado" });
-
     const updateData: any = {
       nombre: data.nombre,
       especialidadId: Number(data.especialidadId),
@@ -323,9 +282,6 @@ export const updateHojaVida = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// 8. BUSCAR INSTRUMENTO POR CÓDIGO EXACTO
-// ==========================================
 export const buscarPorCodigo = async (req: Request, res: Response) => {
   try {
     const { codigo } = req.query;
