@@ -95,4 +95,4 @@ export const insumosQxController = {
       return res.status(500).json({ success: false, message: 'Fallo en BD', error: error.message });
     }
   }
-};s
+};
