@@ -25,6 +25,7 @@ const PORT = 4000;
 
 app.use(cors({
   origin: function (origin, callback) {
+
     if (!origin || origin.startsWith('http://localhost') || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -33,7 +34,7 @@ app.use(cors({
   },
   credentials: true
 }));
-
+    //Agregar prefix, con uno configuro todos// 
 app.use(express.json()); 
 app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
@@ -54,7 +55,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/trazabilidad', trazabilidadRoutes);
 app.use('/api/historico-ciclo', historicoCicloRoutes);
 app.use('/api/insumosqx', insumosQxRoutes);
-app.use('/api/almacenamiento', almacenamientoRoutes); // <-- NUEVA RUTA DE ALMACENAMIENTO
+app.use('/api/almacenamiento', almacenamientoRoutes); 
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
 });

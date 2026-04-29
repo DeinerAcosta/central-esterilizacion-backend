@@ -1,27 +1,16 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { z } from 'zod';
+import { EspecialidadesService } from './especialidades.service';
+import { especialidadSchema, toggleEstadoSchema } from './especialidades.schema';
 
 export const getEspecialidades = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
-    const skip = (page - 1) * limit;
     const search = req.query.search as string || '';
     const estadoFiltro = req.query.estado as string;
-    const whereClause: any = { nombre: { contains: search } };
-    if (estadoFiltro === 'true') whereClause.estado = true;
-    if (estadoFiltro === 'false') whereClause.estado = false;
-    const [total, especialidades] = await Promise.all([
-      prisma.especialidad.count({ where: whereClause }),
-      prisma.especialidad.findMany({
-        where: whereClause,
-        skip,
-        take: limit,
-        orderBy: [ { estado: 'desc' }, { id: 'desc' } ] 
-      })
-    ]);
+
+    const { total, especialidades } = await EspecialidadesService.obtenerTodas(page, limit, search, estadoFiltro);
 
     res.json({
       data: especialidades,
@@ -34,63 +23,64 @@ export const getEspecialidades = async (req: Request, res: Response) => {
   }
 };
 
-export const createEspecialidad = async (req: Request, res: Response) => {
+export const createEspecialidad = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre } = req.body;
-    if (!/^[a-zA-Z\sáéíóúÁÉÍÓÚñÑ]+$/.test(nombre)) {
-        return res.status(400).json({ msg: "El nombre solo debe contener letras" });
-    }
-    const last = await prisma.especialidad.findFirst({ orderBy: { id: 'desc' } });
-    const nextNum = last ? last.id + 1 : 1;
-    const codigoGenerado = `ESP-${String(nextNum).padStart(3, '0')}`;
-    const nuevaEspecialidad = await prisma.especialidad.create({
-      data: { codigo: codigoGenerado, nombre }
-    });
-
+    // 1. Validación de Zod
+    const { nombre } = especialidadSchema.parse(req.body);
+    
+    // 2. Ejecutar servicio
+    const nuevaEspecialidad = await EspecialidadesService.crear(nombre);
     res.status(201).json({ msg: "Especialidad creada correctamente", data: nuevaEspecialidad });
+    
   } catch (error: any) {
+    // Captura errores de validación de Zod usando .issues
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
+    // Captura errores de unicidad de Prisma
     if (error.code === 'P2002') {
       res.status(400).json({ msg: "El nombre de la especialidad ya existe" });
-    } else {
-      res.status(500).json({ msg: "Error al crear la especialidad" });
+      return;
     }
+    res.status(500).json({ msg: "Error al crear la especialidad" });
   }
 };
 
-export const updateEspecialidad = async (req: Request, res: Response) => {
+export const updateEspecialidad = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nombre } = req.body;
-    if (!/^[a-zA-Z\sáéíóúÁÉÍÓÚñÑ]+$/.test(nombre)) {
-        return res.status(400).json({ msg: "El nombre solo debe contener letras" });
-    }
-    const especialidadActualizada = await prisma.especialidad.update({
-      where: { id: Number(id) },
-      data: { nombre }
-    });
-
+    const { nombre } = especialidadSchema.parse(req.body);
+    
+    const especialidadActualizada = await EspecialidadesService.actualizar(Number(id), nombre);
     res.json({ msg: "Especialidad actualizada correctamente", data: especialidadActualizada });
+    
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
     if (error.code === 'P2002') {
       res.status(400).json({ msg: "El nombre de la especialidad ya existe" });
-    } else {
-      res.status(500).json({ msg: "Error al actualizar la especialidad" });
+      return;
     }
+    res.status(500).json({ msg: "Error al actualizar la especialidad" });
   }
 };
 
-export const toggleEstadoEspecialidad = async (req: Request, res: Response) => {
+export const toggleEstadoEspecialidad = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { estado } = req.body;
+    const { estado } = toggleEstadoSchema.parse(req.body);
 
-    await prisma.especialidad.update({
-      where: { id: Number(id) },
-      data: { estado: Boolean(estado) }
-    });
-
+    await EspecialidadesService.cambiarEstado(Number(id), estado);
     res.json({ msg: `Especialidad ${estado ? 'habilitada' : 'deshabilitada'} correctamente` });
-  } catch (error) {
+    
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
     res.status(500).json({ msg: "Error al actualizar el estado" });
   }
 };
