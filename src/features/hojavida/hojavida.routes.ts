@@ -7,9 +7,10 @@ import {
   registrarContable, 
   patchEstadoHojaVida,
   updateHojaVida,
-  buscarPorCodigo
+  buscarPorCodigo,
+  getInventarioPorSede,
+  ejecutarTraslado
 } from './hojavida.controller'; 
-import { getInventarioPorSede, ejecutarTraslado } from './traslados.controller';
 import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();

@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { insumosQxController } from './insumosqx.controller'; // Verifica que la ruta al controlador sea correcta en tu proyecto
+import { insumosQxController } from './insumosqx.controller'; 
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
 const router = Router();
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = 'uploads/evidencias';
@@ -15,6 +16,7 @@ const storage = multer.diskStorage({
     cb(null, 'indicador-insumo-qx-' + Date.now() + path.extname(file.originalname));
   }
 });
+
 const fileFilter = (req: any, file: any, cb: any) => {
   const filetypes = /jpeg|jpg|png|webp/;
   const mimetype = filetypes.test(file.mimetype);
@@ -23,7 +25,6 @@ const fileFilter = (req: any, file: any, cb: any) => {
   if (mimetype && extname) {
     return cb(null, true);
   }
-
   cb(new Error('Formato de archivo no válido. Solo se permiten imágenes (JPG, PNG, WEBP).'));
 };
 

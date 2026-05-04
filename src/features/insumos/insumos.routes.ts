@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { getInsumos, createInsumo, updateInsumo, toggleEstadoInsumo, getListasSoporte } from './insumos.controller';
+import { 
+  getInsumos, 
+  createInsumo, 
+  updateInsumo, 
+  toggleEstadoInsumo, 
+  getListasSoporte 
+} from './insumos.controller';
 
 const router = Router();
 

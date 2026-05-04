@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { getProveedores, createProveedor, updateProveedor, toggleEstadoProveedor, getListasSoporte } from './proveedores.controller';
+import { 
+  getProveedores, 
+  createProveedor, 
+  updateProveedor, 
+  toggleEstadoProveedor, 
+  getListasSoporte 
+} from './proveedores.controller';
 
 const router = Router();
 

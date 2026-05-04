@@ -10,8 +10,11 @@ import {
 
 const router = Router();
 
+// Rutas estáticas siempre arriba
 router.get('/listas', getListasSoporte);
 router.get('/with-kits', obtenerConKits); 
+
+// Rutas base y dinámicas (/:id) abajo
 router.get('/', getSubespecialidades);
 router.post('/', createSubespecialidad);
 router.put('/:id', updateSubespecialidad);

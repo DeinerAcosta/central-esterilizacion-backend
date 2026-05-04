@@ -9,10 +9,13 @@ import {
 
 const router = Router();
 
+// Rutas estáticas primero
 router.get('/listas', getListasSoporte);
+
+// Rutas base y dinámicas
 router.get('/', getTiposSub);
 router.post('/', createTipoSub);
-router.put('/:id', updateTipoSub); // 👈 Debe ser PUT
-router.patch('/:id/estado', toggleEstadoTipoSub); // 👈 Debe ser PATCH y terminar en /estado
+router.put('/:id', updateTipoSub); 
+router.patch('/:id/estado', toggleEstadoTipoSub); 
 
 export default router;

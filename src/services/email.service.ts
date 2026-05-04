@@ -86,3 +86,35 @@ export const enviarCorreoConfirmacionCambio = async (email: string) => {
     console.error('❌ Error al enviar correo de confirmación:', error);
   }
 };
+
+// NUEVA FUNCIÓN AÑADIDA PARA EL MÓDULO DE USUARIOS
+export const enviarCorreoVerificacion = async (email: string, nombre: string, codigo: string) => {
+  const destino = email ? String(email).trim() : '';
+  if (!destino) return;
+
+  const linkAcceso = process.env.FRONTEND_URL || 'http://localhost:5173/login';  
+  
+  const mailOptions = {
+    from: `"Central de Esterilización" <${process.env.SMTP_USER || 'no-reply@esterilizacion.com'}>`,
+    to: destino,
+    subject: 'Su código de verificación - Central de Esterilización',
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <p>Estimado(a) <strong>${nombre}</strong>.</p>
+        <p>A continuación, encontrará su nuevo código de verificación para el programa de CENTRAL DE ESTERILIZACIÓN:</p>
+        <h2 style="color: #0ea5e9;">Código de verificación: ${codigo}</h2>
+        <p>Por motivos de seguridad, este código no se puede compartir.</p>
+        <p>Link de acceso: <a href="${linkAcceso}" style="color: #0ea5e9;">${linkAcceso}</a></p>
+        <br/>
+        <p>Saludos cordiales</p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Correo de verificación enviado exitosamente a ${destino}`);
+  } catch (error) {
+    console.error(`❌ Error al enviar el correo a ${destino}:`, error);
+  }
+};
