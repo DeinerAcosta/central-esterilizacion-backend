@@ -72,7 +72,7 @@ export const almacenamientoController = {
   // POST /insumos/:tipo  (tipo = 'solicitud' | 'consumo')
   registrarMovimientoInsumo: async (req: Request, res: Response) => {
     try {
-      const { tipo } = req.params;
+      const tipo = String(req.params.tipo);
       const payload = movimientoInsumoSchema.parse(req.body);
       await AlmacenamientoService.registrarMovimientoInsumo(tipo, payload);
       return res.json({ success: true, message: `Registro de ${tipo} guardado correctamente` });

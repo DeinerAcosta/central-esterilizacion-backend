@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { enviarCorreoProvisional, enviarCorreoConfirmacionCambio } from '../../services/email.service';
 
 const prisma = new PrismaClient();

@@ -13,11 +13,22 @@ export const getListasSoporte = async (req: Request, res: Response) => {
   }
 };
 
+// ✅ NUEVO: catálogo completo con relaciones para modal Solicitar/Consumir en Almacenamiento
+export const getCatalogoInsumos = async (req: Request, res: Response) => {
+  try {
+    const data = await InsumosService.obtenerCatalogo();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error cargando catálogo de insumos:", error);
+    res.status(500).json({ success: false, msg: "Error al cargar el catálogo de insumos" });
+  }
+};
+
 export const getInsumos = async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = 10;
-    const search = req.query.search as string || '';
+    const page         = parseInt(req.query.page as string) || 1;
+    const limit        = 10;
+    const search       = (req.query.search as string) || '';
     const estadoFiltro = req.query.estado as string;
 
     const { total, insumos } = await InsumosService.obtenerTodos(page, limit, search, estadoFiltro);
@@ -36,14 +47,15 @@ export const getInsumos = async (req: Request, res: Response) => {
 export const createInsumo = async (req: Request, res: Response): Promise<void> => {
   try {
     const dataValidada = insumoSchema.parse(req.body);
-    const nuevoInsumo = await InsumosService.crear(dataValidada);
+    const nuevoInsumo  = await InsumosService.crear(dataValidada);
     res.status(201).json({ msg: "Insumo creado exitosamente", data: nuevoInsumo });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
       return;
     }
-    if (error.code === 'P2002') {
+    const err = error as { code?: string };
+    if (err.code === 'P2002') {
       res.status(400).json({ msg: "El nombre o código del insumo ya existe" });
       return;
     }
@@ -53,17 +65,17 @@ export const createInsumo = async (req: Request, res: Response): Promise<void> =
 
 export const updateInsumo = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id }       = req.params;
     const dataValidada = insumoSchema.parse(req.body);
-    
     const insumoActualizado = await InsumosService.actualizar(Number(id), dataValidada);
     res.json({ msg: "Insumo actualizado exitosamente", data: insumoActualizado });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
       return;
     }
-    if (error.code === 'P2002') {
+    const err = error as { code?: string };
+    if (err.code === 'P2002') {
       res.status(400).json({ msg: "El nombre del insumo ya existe" });
       return;
     }
@@ -73,12 +85,11 @@ export const updateInsumo = async (req: Request, res: Response): Promise<void> =
 
 export const toggleEstadoInsumo = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { id }   = req.params;
     const { estado } = toggleEstadoSchema.parse(req.body);
-
     await InsumosService.cambiarEstado(Number(id), estado);
     res.json({ msg: `Insumo ${estado ? 'habilitado' : 'deshabilitado'} exitosamente` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
       return;
