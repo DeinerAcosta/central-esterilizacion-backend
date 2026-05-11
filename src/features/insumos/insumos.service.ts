@@ -66,9 +66,9 @@ export class InsumosService {
   }
 
   static async crear(data: {
-    codigo?: string; nombre: string; descripcion: string;
+    codigo?: string | null; nombre: string; descripcion?: string | null;
     unidadMedidaId: number; presentacionId: number;
-    requiereEsterilizacion: boolean; tipoEsterilizacion?: string;
+    requiereEsterilizacion: boolean; tipoEsterilizacion?: string | null;
   }) {
     let codigoAsignado = data.codigo;
 
@@ -82,29 +82,29 @@ export class InsumosService {
       data: {
         codigo:                 codigoAsignado,
         nombre:                 data.nombre,
-        descripcion:            data.descripcion,
+        descripcion:            data.descripcion            || '',
         unidadMedidaId:         data.unidadMedidaId,
         presentacionId:         data.presentacionId,
         requiereEsterilizacion: data.requiereEsterilizacion,
-        tipoEsterilizacion:     data.tipoEsterilizacion || null,
+        tipoEsterilizacion:     data.tipoEsterilizacion     || null,
       }
     });
   }
 
   static async actualizar(id: number, data: {
-    nombre: string; descripcion: string;
+    nombre: string; descripcion?: string | null;
     unidadMedidaId: number; presentacionId: number;
-    requiereEsterilizacion: boolean; tipoEsterilizacion?: string;
+    requiereEsterilizacion: boolean; tipoEsterilizacion?: string | null;
   }) {
     return await prisma.insumoQuirurgico.update({
       where: { id },
       data: {
         nombre:                 data.nombre,
-        descripcion:            data.descripcion,
+        descripcion:            data.descripcion            || '',
         unidadMedidaId:         data.unidadMedidaId,
         presentacionId:         data.presentacionId,
         requiereEsterilizacion: data.requiereEsterilizacion,
-        tipoEsterilizacion:     data.tipoEsterilizacion || null,
+        tipoEsterilizacion:     data.tipoEsterilizacion     || null,
       }
     });
   }
