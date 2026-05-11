@@ -1,98 +1,88 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { z } from 'zod';
+import { AlmacenamientoService } from './almacenamiento.service';
+import { enviarSetSchema, movimientoInsumoSchema } from './almacenamiento.schema';
 
 export const almacenamientoController = {
-  obtenerInsumos: async (req: Request, res: Response) => {
-    try {
 
-      const insumosCiclo = await prisma.insumoCiclo.findMany({
-        include: {
-          insumo: true,
-          ciclo: true
-        },
-        orderBy: { id: 'desc' }
-      });
-
-      const data = insumosCiclo.map(ic => ({
-        id: ic.id,
-        codigo: ic.insumo.codigo,
-        fecha: ic.ciclo.updatedAt.toISOString().split('T')[0].split('-').reverse().join('/'), 
-        tipo: 'Consumido', // Por defecto, si están en un ciclo, fueron consumidos
-        nombre: ic.insumo.nombre,
-        esterilizado: ic.insumo.tipoEsterilizacion || 'No aplica',
-        cantidad: ic.cantidad
-      }));
-
-      return res.json({ success: true, data });
-    } catch (error: any) {
-      console.error('Error en obtenerInsumos:', error);
-      return res.status(500).json({ success: false, message: 'Fallo en BD', error: error.message });
-    }
-  },
-
+  // GET /instrumentos
   obtenerInstrumentos: async (req: Request, res: Response) => {
     try {
-      const instrumentos = await prisma.hojaVidaInstrumento.findMany({
-        include: {
-          especialidad: true,
-          subespecialidad: true,
-          tipo: true,
-          kit: true
-        },
-        orderBy: { id: 'desc' }
-      });
-
-      const data = instrumentos.map(inst => ({
-        id: inst.id,
-        vencimiento: inst.proximoMantenimiento 
-            ? inst.proximoMantenimiento.toISOString().split('T')[0].split('-').reverse().join('/') 
-            : 'Sin registrar',
-        nombre: inst.nombre,
-        kit: inst.kit ? inst.kit.codigoKit : 'Individual',
-        especialidad: inst.especialidad?.nombre || 'N/A',
-        sub: inst.subespecialidad?.nombre || 'N/A',
-        tSub: inst.tipo?.nombre || 'N/A'
-      }));
-
+      const data = await AlmacenamientoService.obtenerInstrumentos();
       return res.json({ success: true, data });
-    } catch (error: any) {
-      console.error('Error en obtenerInstrumentos:', error);
-      return res.status(500).json({ success: false, message: 'Fallo en BD', error: error.message });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Error en obtenerInstrumentos:', msg);
+      return res.status(500).json({ success: false, message: 'Fallo al obtener instrumentos', error: msg });
     }
   },
 
+  // GET /kits
   obtenerKits: async (req: Request, res: Response) => {
     try {
-      const kits = await prisma.kit.findMany({
-        include: {
-          especialidad: true,
-          subespecialidad: true,
-          ciclos: {
-            orderBy: { id: 'desc' },
-            take: 1
-          }
-        },
-        orderBy: { id: 'desc' }
-      });
-
-      const data = kits.map(k => {
-        const ultimoCiclo = k.ciclos[0];
-        return {
-          id: k.id,
-          vencimiento: ultimoCiclo?.almacFechaVencimiento || 'Sin ciclo previo',
-          kit: k.codigoKit,
-          especialidad: k.especialidad?.nombre || 'N/A',
-          sub: k.subespecialidad?.nombre || 'N/A',
-          tSub: k.tipoSubespecialidad || 'N/A'
-        };
-      });
-
+      const data = await AlmacenamientoService.obtenerKits();
       return res.json({ success: true, data });
-    } catch (error: any) {
-      console.error('Error en obtenerKits:', error);
-      return res.status(500).json({ success: false, message: 'Fallo en BD', error: error.message });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Error en obtenerKits:', msg);
+      return res.status(500).json({ success: false, message: 'Fallo al obtener kits', error: msg });
     }
-  }
+  },
+
+  // GET /insumos
+  obtenerInsumos: async (req: Request, res: Response) => {
+    try {
+      const data = await AlmacenamientoService.obtenerInsumos();
+      return res.json({ success: true, data });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Error en obtenerInsumos:', msg);
+      return res.status(500).json({ success: false, message: 'Fallo al obtener insumos', error: msg });
+    }
+  },
+
+  // GET /historial-prestamos
+  getHistorialPrestamos: async (req: Request, res: Response) => {
+    try {
+      const data = await AlmacenamientoService.obtenerHistorialPrestamos();
+      return res.json({ success: true, data });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Error en getHistorialPrestamos:', msg);
+      return res.status(500).json({ success: false, message: 'Fallo al obtener historial', error: msg });
+    }
+  },
+
+  // POST /enviar-set
+  enviarSetQuirofano: async (req: Request, res: Response) => {
+    try {
+      const payload = enviarSetSchema.parse(req.body);
+      const resultado = await AlmacenamientoService.enviarSetQuirofano(payload);
+      return res.json({ success: true, data: { id: resultado.id }, message: 'Set enviado correctamente' });
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, message: error.issues[0].message });
+      }
+      const msg = error instanceof Error ? error.message : 'Error al procesar el envío';
+      console.error('Error en enviarSetQuirofano:', msg);
+      return res.status(400).json({ success: false, message: msg });
+    }
+  },
+
+  // POST /insumos/:tipo  (tipo = 'solicitud' | 'consumo')
+  registrarMovimientoInsumo: async (req: Request, res: Response) => {
+    try {
+      const { tipo } = req.params;
+      const payload = movimientoInsumoSchema.parse(req.body);
+      await AlmacenamientoService.registrarMovimientoInsumo(tipo, payload);
+      return res.json({ success: true, message: `Registro de ${tipo} guardado correctamente` });
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, message: error.issues[0].message });
+      }
+      const msg = error instanceof Error ? error.message : 'Error al procesar la solicitud';
+      console.error('Error en registrarMovimientoInsumo:', msg);
+      return res.status(400).json({ success: false, message: msg });
+    }
+  },
 };
