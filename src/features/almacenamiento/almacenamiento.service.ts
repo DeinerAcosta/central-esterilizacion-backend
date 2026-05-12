@@ -9,7 +9,7 @@ const formatDate = (date: Date | null | undefined): string => {
 
 export class AlmacenamientoService {
 
-  // ─── Instrumentos desde HojaVidaInstrumento ───────────────
+  // ── Instrumentos desde HojaVidaInstrumento ───────────────────
   static async obtenerInstrumentos() {
     const instrumentos = await prisma.hojaVidaInstrumento.findMany({
       include: {
@@ -33,7 +33,7 @@ export class AlmacenamientoService {
     }));
   }
 
-  // ─── Kits disponibles ─────────────────────────────────────
+  // ── Kits disponibles ─────────────────────────────────────────
   static async obtenerKits() {
     const kits = await prisma.kit.findMany({
       include: {
@@ -49,171 +49,165 @@ export class AlmacenamientoService {
       fechaVencimiento:    k.ciclos[0]?.almacFechaVencimiento || 'Sin ciclo previo',
       kit:                 k.codigoKit,
       nombre:              k.nombre,
-      especialidad:        k.especialidad?.nombre             || 'N/A',
-      subEspecialidad:     k.subespecialidad?.nombre          || 'N/A',
-      tipoSubEspecialidad: k.tipoSubespecialidad              || 'N/A',
+      especialidad:        k.especialidad?.nombre            || 'N/A',
+      subEspecialidad:     k.subespecialidad?.nombre         || 'N/A',
+      tipoSubEspecialidad: k.tipoSubespecialidad             || 'N/A',
       tipo:                'Kit' as const,
     }));
   }
 
-  // ─── Insumos — historial desde InsumoCiclo ────────────────
+  // ── Insumos ── combina historial de InsumoCiclo + MovimientoInsumo ──
   static async obtenerInsumos() {
+    // Historial de ciclos
     const insumosCiclo = await prisma.insumoCiclo.findMany({
       include: {
         insumo: { include: { unidadMedida: true, presentacion: true, proveedor: true } },
         ciclo:  true,
       },
-      orderBy: { id: 'desc' }
+      orderBy: { id: 'desc' },
+      take: 100,
     });
 
-    return insumosCiclo.map(ic => ({
+    const desdeCiclos = insumosCiclo.map(ic => ({
       id:                     ic.id,
       codigo:                 ic.insumo.codigo,
       nombre:                 ic.insumo.nombre,
       fechaVencimiento:       formatDate(ic.ciclo.updatedAt),
       tipoMovimiento:         'Consumido' as const,
       requiereEsterilizacion: ic.insumo.requiereEsterilizacion,
-      tipoEsterilizacion:     ic.insumo.tipoEsterilizacion     || 'No aplica',
-      unidadMedida:           ic.insumo.unidadMedida?.nombre   || 'Unidad',
-      presentacion:           ic.insumo.presentacion?.nombre   || 'N/A',
-      proveedor:              ic.insumo.proveedor?.nombre      || 'N/A',
+      tipoEsterilizacion:     ic.insumo.tipoEsterilizacion    || 'No aplica',
+      unidadMedida:           ic.insumo.unidadMedida?.nombre  || 'Unidad',
+      presentacion:           ic.insumo.presentacion?.nombre  || 'N/A',
+      proveedor:              ic.insumo.proveedor?.nombre     || 'N/A',
       cantidad:               ic.cantidad,
     }));
-  }
 
-  // ─── Historial de préstamos desde MovimientoAlmacen ───────
-  // Nota: si el modelo no existe en la BD, devuelve array vacío
-  static async obtenerHistorialPrestamos() {
+    // ✅ Movimientos de solicitud/consumo desde MovimientoInsumo (si existe el modelo)
+    let desdeMovimientos: typeof desdeCiclos = [];
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prismaAny = prisma as any;
-      if (!prismaAny.movimientoAlmacen) return [];
-
-      const movimientos = await prismaAny.movimientoAlmacen.findMany({
-        where:   { tipoMovimiento: 'Envio_Quirofano' },
+      const movimientos = await prisma.movimientoInsumo.findMany({
         include: {
-          quirofano: true,
           detalles: {
             include: {
-              kit:         { include: { especialidad: true, subespecialidad: true } },
-              instrumento: { include: { especialidad: true, subespecialidad: true, tipo: true } }
+              insumo: { include: { unidadMedida: true, presentacion: true, proveedor: true } },
             }
           }
         },
-        orderBy: { fechaMovimiento: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 200,
       });
 
-      return movimientos.flatMap((mov: any) =>
-        mov.detalles.map((det: any) => ({
-          id:                  det.id,
-          fechaPrestamo:       formatDate(mov.fechaMovimiento),
-          nombre:              det.kit?.nombre || det.instrumento?.nombre || 'N/A',
-          kit:                 det.kit?.codigoKit || null,
-          especialidad:        det.kit?.especialidad?.nombre || det.instrumento?.especialidad?.nombre || 'N/A',
-          subEspecialidad:     det.kit?.subespecialidad?.nombre || det.instrumento?.subespecialidad?.nombre || 'N/A',
-          tipoSubEspecialidad: det.kit?.tipoSubespecialidad || det.instrumento?.tipo?.nombre || 'N/A',
-          quirofano:           mov.quirofano?.nombre || 'N/A',
+      type DetalleMov = typeof movimientos[0]['detalles'][0];
+      type MovMov     = typeof movimientos[0];
+      desdeMovimientos = movimientos.flatMap((mov: MovMov) =>
+        mov.detalles.map((det: DetalleMov, idx: number) => ({
+          id:                     mov.id * 10000 + idx,
+          codigo:                 det.insumo.codigo,
+          nombre:                 det.insumo.nombre,
+          fechaVencimiento:       formatDate(mov.fecha),
+          tipoMovimiento:         (mov.tipo === 'Consumo' ? 'Consumido' : 'Solicitado') as 'Consumido' | 'Solicitado',
+          requiereEsterilizacion: det.insumo.requiereEsterilizacion,
+          tipoEsterilizacion:     det.insumo.tipoEsterilizacion    || 'No aplica',
+          unidadMedida:           det.insumo.unidadMedida?.nombre  || 'Unidad',
+          presentacion:           det.insumo.presentacion?.nombre  || 'N/A',
+          proveedor:              det.insumo.proveedor?.nombre     || 'N/A',
+          cantidad:               det.cantidad,
         }))
       );
+    } catch {
+      // MovimientoInsumo aún no migrado — continuar sin él
+    }
+
+    return [...desdeMovimientos, ...desdeCiclos];
+  }
+
+  // ── Historial de préstamos ────────────────────────────────────
+  static async obtenerHistorialPrestamos() {
+    try {
+      const movimientos = await prisma.movimientoInsumo.findMany({
+        include: {
+          responsable: true,
+          sede:        true,
+          detalles: { include: { insumo: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      type MovHist = typeof movimientos[0];
+      return movimientos.map((mov: MovHist) => ({
+        id:            mov.id,
+        fechaPrestamo: formatDate(mov.fecha),
+        tipo:          mov.tipo,
+        responsable:   `${mov.responsable.nombre} ${mov.responsable.apellido ?? ''}`.trim(),
+        sede:          mov.sede.nombre,
+        totalInsumos:  mov.detalles.length,
+      }));
     } catch {
       return [];
     }
   }
 
-  // ─── Enviar set a quirófano ───────────────────────────────
-  // Nota: si Inventario no existe en BD, lanza error descriptivo
+  // ── Enviar set a quirófano ────────────────────────────────────
   static async enviarSetQuirofano(payload: {
     kitId: number; quirofanoId: number; estado: string;
     instrumentadorId?: number | null; responsableId: number;
   }) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const prismaAny = prisma as any;
-    if (!prismaAny.inventario) {
-      throw new Error('El módulo de inventario no está disponible aún. Contacte al administrador.');
-    }
+    // Verificar que el kit existe
+    const kit = await prisma.kit.findUnique({ where: { id: payload.kitId } });
+    if (!kit) throw new Error('El kit seleccionado no existe.');
+    if (kit.estado !== 'Habilitado') throw new Error('El kit no está habilitado para envío.');
 
-    return await prisma.$transaction(async (tx) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const txAny = tx as any;
-      const itemInventario = await txAny.inventario.findUnique({ where: { id: payload.kitId } });
-
-      if (!itemInventario || itemInventario.estado !== 'Disponible') {
-        throw new Error('El elemento seleccionado no está disponible en el almacén.');
+    // Crear un ciclo de distribución
+    const ciclo = await prisma.cicloEsterilizacion.create({
+      data: {
+        codigoCiclo:           `ALM-${Date.now()}`,
+        kitId:                 payload.kitId,
+        etapaActual:           6,
+        responsableActualId:   payload.responsableId,
+        destinoSet:            'Distribución (A Quirófano)',
+        quirofanoDestino:      String(payload.quirofanoId),
+        instrumentadorDestino: payload.instrumentadorId ? String(payload.instrumentadorId) : null,
+        estadoGlobal:          'Finalizado',
       }
-
-      await txAny.inventario.update({
-        where: { id: itemInventario.id },
-        data:  { estado: 'En Quirófano' }
-      });
-
-      return await txAny.movimientoAlmacen.create({
-        data: {
-          tipoMovimiento:   'Envio_Quirofano',
-          quirofanoId:      payload.quirofanoId,
-          responsableId:    payload.responsableId,
-          instrumentadorId: payload.instrumentadorId ?? null,
-          detalles: {
-            create: [{
-              kitId:         itemInventario.kitId,
-              instrumentoId: itemInventario.instrumentoId,
-              cantidad:      1
-            }]
-          }
-        }
-      });
     });
+
+    return { id: ciclo.id };
   }
 
-  // ─── Registrar solicitud o consumo ───────────────────────
+  // ── Registrar solicitud o consumo ─────────────────────────────
   static async registrarMovimientoInsumo(
     tipo: string,
     payload: {
-      fecha: string; responsableId: number; sedeId: number;
+      fecha: string;
+      responsableId: number;
+      sedeId: number;
       insumos: Array<{ insumoId: number; cantidad: number }>;
     }
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const prismaAny = prisma as any;
-    if (!prismaAny.movimientoAlmacen) {
-      throw new Error('El módulo de movimientos no está disponible aún.');
-    }
-
     const tipoMovimiento = tipo === 'consumo' ? 'Consumo' : 'Solicitud';
 
-    return await prisma.$transaction(async (tx) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const txAny = tx as any;
+    // ✅ Verificar que los insumos existen
+    for (const item of payload.insumos) {
+      const insumo = await prisma.insumoQuirurgico.findUnique({ where: { id: item.insumoId } });
+      if (!insumo) throw new Error(`Insumo ID ${item.insumoId} no encontrado.`);
+    }
 
-      if (tipoMovimiento === 'Consumo') {
-        for (const item of payload.insumos) {
-          const stockActual = await txAny.inventario.findFirst({
-            where: { insumoId: item.insumoId, estado: 'Disponible' }
-          });
-          if (!stockActual || stockActual.cantidad < item.cantidad) {
-            throw new Error(`Stock insuficiente para el insumo ID ${item.insumoId}. Disponible: ${stockActual?.cantidad || 0}`);
-          }
-          const nuevaCantidad = stockActual.cantidad - item.cantidad;
-          await txAny.inventario.update({
-            where: { id: stockActual.id },
-            data:  { cantidad: nuevaCantidad, estado: nuevaCantidad === 0 ? 'Agotado' : 'Disponible' }
-          });
+    // ✅ Crear el movimiento usando el modelo MovimientoInsumo
+    const movimiento = await prisma.movimientoInsumo.create({
+      data: {
+        tipo:         tipoMovimiento,
+        fecha:        new Date(payload.fecha),
+        responsableId: payload.responsableId,
+        sedeId:       payload.sedeId,
+        detalles: {
+          create: payload.insumos.map(item => ({
+            insumoId: item.insumoId,
+            cantidad: item.cantidad,
+          }))
         }
       }
-
-      return await txAny.movimientoAlmacen.create({
-        data: {
-          tipoMovimiento,
-          fechaMovimiento: new Date(payload.fecha),
-          sedeDestinoId:   payload.sedeId,
-          responsableId:   payload.responsableId,
-          detalles: {
-            create: payload.insumos.map(item => ({
-              insumoId: item.insumoId,
-              cantidad: item.cantidad
-            }))
-          }
-        }
-      });
     });
+
+    return { id: movimiento.id };
   }
 }
