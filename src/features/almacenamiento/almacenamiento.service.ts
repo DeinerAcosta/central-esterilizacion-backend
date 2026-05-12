@@ -83,7 +83,10 @@ export class AlmacenamientoService {
     }));
 
     // ✅ Movimientos de solicitud/consumo desde MovimientoInsumo (si existe el modelo)
-    let desdeMovimientos: typeof desdeCiclos = [];
+    type InsumoRow = Omit<typeof desdeCiclos[0], 'tipoMovimiento'> & {
+      tipoMovimiento: 'Consumido' | 'Solicitado';
+    };
+    let desdeMovimientos: InsumoRow[] = [];
     try {
       const movimientos = await prisma.movimientoInsumo.findMany({
         include: {
