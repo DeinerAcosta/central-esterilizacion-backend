@@ -31,11 +31,11 @@ model Usuario {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  hojasDeVidaPropias    HojaVidaInstrumento[] @relation("PropietarioInstrumento")
-  reportesCreados       Reporte[]             @relation("UsuarioReporta")
-  ciclosGestionados     CicloEsterilizacion[] @relation("ResponsableCiclo")
+  hojasDeVidaPropias HojaVidaInstrumento[] @relation("PropietarioInstrumento")
+  reportesCreados    Reporte[]             @relation("UsuarioReporta")
+  ciclosGestionados  CicloEsterilizacion[] @relation("ResponsableCiclo")
   // ✅ NUEVO: movimientos de insumos
-  movimientosInsumo     MovimientoInsumo[]    @relation("MovimientosInsumo")
+  movimientosInsumo  MovimientoInsumo[]    @relation("MovimientosInsumo")
 }
 
 // ==========================================
@@ -99,25 +99,25 @@ model Presentacion {
 }
 
 model InsumoQuirurgico {
-  id                     Int                       @id @default(autoincrement())
-  codigo                 String                    @unique
-  nombre                 String                    @unique
+  id                     Int          @id @default(autoincrement())
+  codigo                 String       @unique
+  nombre                 String       @unique
   descripcion            String
   unidadMedidaId         Int
-  unidadMedida           UnidadMedida              @relation(fields: [unidadMedidaId], references: [id])
+  unidadMedida           UnidadMedida @relation(fields: [unidadMedidaId], references: [id])
   presentacionId         Int
-  presentacion           Presentacion              @relation(fields: [presentacionId], references: [id])
+  presentacion           Presentacion @relation(fields: [presentacionId], references: [id])
   proveedorId            Int?
-  proveedor              Proveedor?                @relation(fields: [proveedorId], references: [id])
-  requiereEsterilizacion Boolean                   @default(false)
+  proveedor              Proveedor?   @relation(fields: [proveedorId], references: [id])
+  requiereEsterilizacion Boolean      @default(false)
   tipoEsterilizacion     String?
-  estado                 Boolean                   @default(true)
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
+  estado                 Boolean      @default(true)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
-  insumosUsados          InsumoCiclo[]
+  insumosUsados      InsumoCiclo[]
   // ✅ NUEVO: detalles de movimientos
-  movimientosDetalle     MovimientoInsumoDetalle[] @relation("InsumosMovimiento")
+  movimientosDetalle MovimientoInsumoDetalle[] @relation("InsumosMovimiento")
 }
 
 model Proveedor {
@@ -140,22 +140,22 @@ model Proveedor {
 // CONFIGURACIÓN: SEDES Y QUIRÓFANOS
 // ==========================================
 model Sede {
-  id          Int                   @id @default(autoincrement())
-  nombre      String                @unique
-  pais        String                @default("Colombia")
-  ciudad      String                @default("")
-  direccion   String?               @default("")
-  responsable String?               @default("")
-  estado      Boolean               @default(true)
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  pais        String  @default("Colombia")
+  ciudad      String  @default("")
+  direccion   String? @default("")
+  responsable String? @default("")
+  estado      Boolean @default(true)
 
-  quirofanos       Quirofano[]
-  kits             Kit[]
-  instrumentos     HojaVidaInstrumento[]
-  trasladosOrigen  HistorialTraslado[]   @relation("SedeOrigenTraslado")
-  trasladosDestino HistorialTraslado[]   @relation("SedeDestinoTraslado")
-  ciclosDestino    CicloEsterilizacion[] @relation("SedeDestinoTraslado")
+  quirofanos        Quirofano[]
+  kits              Kit[]
+  instrumentos      HojaVidaInstrumento[]
+  trasladosOrigen   HistorialTraslado[]   @relation("SedeOrigenTraslado")
+  trasladosDestino  HistorialTraslado[]   @relation("SedeDestinoTraslado")
+  ciclosDestino     CicloEsterilizacion[] @relation("SedeDestinoTraslado")
   // ✅ NUEVO: movimientos de insumos
-  movimientosInsumo MovimientoInsumo[]   @relation("MovimientosInsumoSede")
+  movimientosInsumo MovimientoInsumo[]    @relation("MovimientosInsumoSede")
 }
 
 model Quirofano {
@@ -171,20 +171,20 @@ model Quirofano {
 // MÓDULO: TM KIT
 // ==========================================
 model Kit {
-  id                  Int                   @id @default(autoincrement())
-  codigoKit           String                @unique
+  id                  Int             @id @default(autoincrement())
+  codigoKit           String          @unique
   nombre              String
   numeroKit           Int
-  cantidad            Int                   @default(1)
-  estado              String                @default("Habilitado")
+  cantidad            Int             @default(1)
+  estado              String          @default("Habilitado")
   especialidadId      Int
-  especialidad        Especialidad          @relation(fields: [especialidadId], references: [id])
+  especialidad        Especialidad    @relation(fields: [especialidadId], references: [id])
   subespecialidadId   Int
-  subespecialidad     Subespecialidad       @relation(fields: [subespecialidadId], references: [id])
+  subespecialidad     Subespecialidad @relation(fields: [subespecialidadId], references: [id])
   tipoSubespecialidad String
   sedeId              Int?
-  sede                Sede?                 @relation(fields: [sedeId], references: [id])
-  createdAt           DateTime              @default(now())
+  sede                Sede?           @relation(fields: [sedeId], references: [id])
+  createdAt           DateTime        @default(now())
 
   instrumentos       InstrumentoEnKit[]
   hojasDeVida        HojaVidaInstrumento[]
@@ -204,41 +204,41 @@ model InstrumentoEnKit {
 // MÓDULO: HOJA DE VIDA DE INSTRUMENTOS
 // ==========================================
 model HojaVidaInstrumento {
-  id                      Int                   @id @default(autoincrement())
-  codigo                  String                @unique
+  id                      Int                 @id @default(autoincrement())
+  codigo                  String              @unique
   especialidadId          Int
-  especialidad            Especialidad          @relation(fields: [especialidadId], references: [id])
+  especialidad            Especialidad        @relation(fields: [especialidadId], references: [id])
   subespecialidadId       Int
-  subespecialidad         Subespecialidad       @relation(fields: [subespecialidadId], references: [id])
+  subespecialidad         Subespecialidad     @relation(fields: [subespecialidadId], references: [id])
   tipoId                  Int
-  tipo                    TipoSubespecialidad   @relation(fields: [tipoId], references: [id])
+  tipo                    TipoSubespecialidad @relation(fields: [tipoId], references: [id])
   proveedorId             Int
-  proveedor               Proveedor             @relation(fields: [proveedorId], references: [id])
+  proveedor               Proveedor           @relation(fields: [proveedorId], references: [id])
   kitId                   Int?
-  kit                     Kit?                  @relation(fields: [kitId], references: [id])
+  kit                     Kit?                @relation(fields: [kitId], references: [id])
   sedeId                  Int?
-  sede                    Sede?                 @relation(fields: [sedeId], references: [id])
+  sede                    Sede?               @relation(fields: [sedeId], references: [id])
   marcaId                 Int?
-  marca                   Marca?                @relation(fields: [marcaId], references: [id])
+  marca                   Marca?              @relation(fields: [marcaId], references: [id])
   referencia              String?
   ciudad                  String?
   nombre                  String
   fabricante              String
   paisOrigen              String
-  numeroSerie             String                @unique
-  registroInvima          String                @unique
+  numeroSerie             String              @unique
+  registroInvima          String              @unique
   material                String
   materialOtro            String?
   esterilizacion          String
   frecuenciaMantenimiento String
   proximoMantenimiento    DateTime?
   fechaMantenimientoRef   DateTime?
-  observacionesTecnico    String?               @db.Text
-  estadoActual            String                @default("P. registrar")
-  cicloEsterilizacion     Int                   @default(0)
+  observacionesTecnico    String?             @db.Text
+  estadoActual            String              @default("P. registrar")
+  cicloEsterilizacion     Int                 @default(0)
   propietarioId           Int
-  propietario             Usuario               @relation("PropietarioInstrumento", fields: [propietarioId], references: [id])
-  notasObservaciones      String?               @db.Text
+  propietario             Usuario             @relation("PropietarioInstrumento", fields: [propietarioId], references: [id])
+  notasObservaciones      String?             @db.Text
   fechaCompra             DateTime?
   costo                   Float?
   iva                     Float?
@@ -249,14 +249,19 @@ model HojaVidaInstrumento {
   registroInvimaUrl       String?
   codigoInstrumentoUrl    String?
   facturaUrl              String?
-  estado                  String                @default("P. registrar")
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
+  estado                  String              @default("P. registrar")
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   historialTraslados HistorialTraslado[]
   kitsAsignados      InstrumentoEnKit[]
   reportesDano       Reporte[]
   escaneosCiclo      EscaneoInstrumento[]
+
+  // Índices para queries frecuentes que filtran por estos campos.
+  // FKs ya tienen índice automático.
+  @@index([estado])
+  @@index([updatedAt])
 }
 
 // ==========================================
@@ -298,6 +303,9 @@ model Reporte {
   estado                   String              @default("Pendiente")
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
+
+  @@index([estado])
+  @@index([createdAt])
 }
 
 // ==========================================
@@ -316,39 +324,43 @@ model InsumoCiclo {
 // MÓDULO: CICLO DE ESTERILIZACIÓN
 // ==========================================
 model CicloEsterilizacion {
-  id                    Int       @id @default(autoincrement())
-  codigoCiclo           String    @unique
+  id                    Int                  @id @default(autoincrement())
+  codigoCiclo           String               @unique
   kitId                 Int?
-  kit                   Kit?      @relation(fields: [kitId], references: [id])
-  etapaActual           Int       @default(0)
+  kit                   Kit?                 @relation(fields: [kitId], references: [id])
+  etapaActual           Int                  @default(0)
   responsableActualId   Int?
-  responsable           Usuario?  @relation("ResponsableCiclo", fields: [responsableActualId], references: [id])
+  responsable           Usuario?             @relation("ResponsableCiclo", fields: [responsableActualId], references: [id])
   tipoSellado           String?
   tipoEmpaque           String?
-  cintaTest             Boolean   @default(false)
-  quimicoInterno        Boolean   @default(false)
+  cintaTest             Boolean              @default(false)
+  quimicoInterno        Boolean              @default(false)
   lote                  String?
-  observacionRotulado   String?   @db.Text
+  observacionRotulado   String?              @db.Text
   tipoEsterilizacion    String?
   autoclaveTipo         String?
   valorIndicador        String?
   indicadorUrl          String?
   destinoSet            String?
   sedeDestinoId         Int?
-  sedeDestino           Sede?     @relation("SedeDestinoTraslado", fields: [sedeDestinoId], references: [id])
+  sedeDestino           Sede?                @relation("SedeDestinoTraslado", fields: [sedeDestinoId], references: [id])
   quirofanoDestino      String?
   instrumentadorDestino String?
   almacEstado           String?
   almacFechaIngreso     String?
   almacFechaVencimiento String?
   almacUbicacion        String?
-  almacObservacion      String?   @db.Text
+  almacObservacion      String?              @db.Text
   evidenciaInsumosUrl   String?
   insumosUsados         InsumoCiclo[]
-  estadoGlobal          String    @default("En Curso")
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  estadoGlobal          String               @default("En Curso")
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
   escaneos              EscaneoInstrumento[]
+
+  @@index([estadoGlobal])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model EscaneoInstrumento {
@@ -367,7 +379,7 @@ model EscaneoInstrumento {
 // ==========================================
 model MovimientoInsumo {
   id            Int                       @id @default(autoincrement())
-  tipo          String                    // 'Solicitud' | 'Consumo'
+  tipo          String // 'Solicitud' | 'Consumo'
   fecha         DateTime
   responsableId Int
   responsable   Usuario                   @relation("MovimientosInsumo", fields: [responsableId], references: [id])
@@ -375,6 +387,9 @@ model MovimientoInsumo {
   sede          Sede                      @relation("MovimientosInsumoSede", fields: [sedeId], references: [id])
   createdAt     DateTime                  @default(now())
   detalles      MovimientoInsumoDetalle[]
+
+  @@index([fecha])
+  @@index([tipo])
 }
 
 model MovimientoInsumoDetalle {
