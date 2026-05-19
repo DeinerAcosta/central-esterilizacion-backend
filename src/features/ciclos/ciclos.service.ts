@@ -150,40 +150,80 @@ export class CiclosService {
   }
 
   static async obtenerHistoricoKit(kitId: number) {
+    // Tope duro: un kit no debería tener más de 200 instrumentos en
+    // ningún caso real. Si lo tiene, el frontend muestra una vista
+    // resumida y los registros excedentes quedan fuera.
     const instrumentos = await prisma.hojaVidaInstrumento.findMany({
-      where: { kitId }
-    });
-    
-    const idsInstrumentos = instrumentos.map(i => i.id);
-    const todosLosEscaneos = await prisma.escaneoInstrumento.findMany({
-      where: { instrumentoId: { in: idsInstrumentos } }
+      where: { kitId },
+      take: 200,
     });
 
+    if (instrumentos.length === 0) return [];
+
+    const idsInstrumentos = instrumentos.map(i => i.id);
+
+    // Antes traíamos TODOS los escaneos a memoria y filtrábamos en JS.
+    // Con groupBy MySQL hace el conteo nativamente, evitando O(n²).
+    const contadores = await prisma.escaneoInstrumento.groupBy({
+      by: ['instrumentoId', 'etapa'],
+      where: { instrumentoId: { in: idsInstrumentos } },
+      _count: { _all: true },
+    });
+
+    type ContadorPorInstrumento = Record<number, Record<number, number>>;
+    const conteos: ContadorPorInstrumento = {};
+    for (const c of contadores) {
+      conteos[c.instrumentoId] ??= {};
+      conteos[c.instrumentoId][c.etapa] = c._count._all;
+    }
+
     return instrumentos.map(inst => {
-      const historial = todosLosEscaneos.filter((e: any) => e.instrumentoId === inst.id);
+      const m = conteos[inst.id] ?? {};
       return {
         id: inst.id,
-        name: inst.nombre || inst.codigo, 
+        name: inst.nombre || inst.codigo,
         status: inst.estado === 'Habilitado' ? 'Activo' : 'Mantenimiento',
-        l: historial.filter((e: any) => e.etapa === 1).length,
-        s: historial.filter((e: any) => e.etapa === 2).length,
-        se: historial.filter((e: any) => e.etapa === 3).length,
-        r: historial.filter((e: any) => e.etapa === 4).length,
-        e: historial.filter((e: any) => e.etapa === 5).length,
-        c: historial.filter((e: any) => e.etapa === 6).length 
+        l:  m[1] ?? 0,
+        s:  m[2] ?? 0,
+        se: m[3] ?? 0,
+        r:  m[4] ?? 0,
+        e:  m[5] ?? 0,
+        c:  m[6] ?? 0,
       };
     });
   }
 
-  static async obtenerTableroControl() {
-    return await prisma.cicloEsterilizacion.findMany({
-      where: { estadoGlobal: "En Curso" },
-      include: {
-        kit: { select: { codigoKit: true, nombre: true } },
-        responsable: { select: { nombre: true, apellido: true } }
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
+  // Tablero de control paginado: ciclos en curso, más recientes primero.
+  // Cap obligatorio: limit ≤ 100.
+  static async obtenerTableroControl(pageInput?: number, limitInput?: number, search?: string) {
+    const page = Math.max(1, Number.isFinite(pageInput) ? Number(pageInput) : 1);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(limitInput) ? Number(limitInput) : 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = { estadoGlobal: 'En Curso' };
+    if (search) {
+      where.OR = [
+        { codigoCiclo: { contains: search } },
+        { kit: { codigoKit: { contains: search } } },
+        { kit: { nombre: { contains: search } } },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.cicloEsterilizacion.count({ where }),
+      prisma.cicloEsterilizacion.findMany({
+        where,
+        include: {
+          kit: { select: { codigoKit: true, nombre: true } },
+          responsable: { select: { nombre: true, apellido: true } }
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return { data, total, totalPages: Math.ceil(total / limit), currentPage: page };
   }
 
   static async eliminarCiclo(id: number) {

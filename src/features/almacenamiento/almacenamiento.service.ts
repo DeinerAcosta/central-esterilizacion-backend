@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -7,21 +7,46 @@ const formatDate = (date: Date | null | undefined): string => {
   return date.toISOString().split('T')[0];
 };
 
+// Acota el rango de paginación: page mínimo 1, limit en [1..100].
+// Cualquier endpoint que reciba page/limit del cliente DEBE pasar por aquí.
+const normalizarPaginacion = (page?: number, limit?: number) => {
+  const safePage = Math.max(1, Number.isFinite(page) ? Number(page) : 1);
+  const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Number(limit) : 20));
+  return { page: safePage, limit: safeLimit, skip: (safePage - 1) * safeLimit };
+};
+
 export class AlmacenamientoService {
 
-  // ── Instrumentos desde HojaVidaInstrumento ───────────────────
-  static async obtenerInstrumentos() {
-    const instrumentos = await prisma.hojaVidaInstrumento.findMany({
-      include: {
-        especialidad:    true,
-        subespecialidad: true,
-        tipo:            true,
-        kit:             true,
-      },
-      orderBy: { id: 'desc' }
-    });
+  // ── Instrumentos desde HojaVidaInstrumento (paginado) ─────────
+  static async obtenerInstrumentos(pageInput?: number, limitInput?: number, search?: string) {
+    const { page, limit, skip } = normalizarPaginacion(pageInput, limitInput);
 
-    return instrumentos.map(inst => ({
+    const where: Prisma.HojaVidaInstrumentoWhereInput = {};
+    if (search) {
+      where.OR = [
+        { nombre: { contains: search } },
+        { codigo: { contains: search } },
+        { numeroSerie: { contains: search } },
+      ];
+    }
+
+    const [total, instrumentos] = await Promise.all([
+      prisma.hojaVidaInstrumento.count({ where }),
+      prisma.hojaVidaInstrumento.findMany({
+        where,
+        include: {
+          especialidad:    true,
+          subespecialidad: true,
+          tipo:            true,
+          kit:             true,
+        },
+        orderBy: { id: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const data = instrumentos.map(inst => ({
       id:                  inst.id,
       fechaVencimiento:    formatDate(inst.proximoMantenimiento),
       nombre:              inst.nombre,
@@ -31,20 +56,38 @@ export class AlmacenamientoService {
       tipoSubEspecialidad: inst.tipo?.nombre                 || 'N/A',
       tipo:                'Instrumento' as const,
     }));
+
+    return { data, total, totalPages: Math.ceil(total / limit), currentPage: page };
   }
 
-  // ── Kits disponibles ─────────────────────────────────────────
-  static async obtenerKits() {
-    const kits = await prisma.kit.findMany({
-      include: {
-        especialidad:    true,
-        subespecialidad: true,
-        ciclos: { orderBy: { id: 'desc' }, take: 1 }
-      },
-      orderBy: { id: 'desc' }
-    });
+  // ── Kits disponibles (paginado) ──────────────────────────────
+  static async obtenerKits(pageInput?: number, limitInput?: number, search?: string) {
+    const { page, limit, skip } = normalizarPaginacion(pageInput, limitInput);
 
-    return kits.map(k => ({
+    const where: Prisma.KitWhereInput = {};
+    if (search) {
+      where.OR = [
+        { codigoKit: { contains: search } },
+        { nombre: { contains: search } },
+      ];
+    }
+
+    const [total, kits] = await Promise.all([
+      prisma.kit.count({ where }),
+      prisma.kit.findMany({
+        where,
+        include: {
+          especialidad:    true,
+          subespecialidad: true,
+          ciclos: { orderBy: { id: 'desc' }, take: 1 }
+        },
+        orderBy: { id: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const data = kits.map(k => ({
       id:                  k.id,
       fechaVencimiento:    k.ciclos[0]?.almacFechaVencimiento || 'Sin ciclo previo',
       kit:                 k.codigoKit,
@@ -54,18 +97,77 @@ export class AlmacenamientoService {
       tipoSubEspecialidad: k.tipoSubespecialidad             || 'N/A',
       tipo:                'Kit' as const,
     }));
+
+    return { data, total, totalPages: Math.ceil(total / limit), currentPage: page };
   }
 
-  // ── Insumos ── combina historial de InsumoCiclo + MovimientoInsumo ──
-  static async obtenerInsumos() {
-    // Historial de ciclos
+  // ── Insumos: movimientos (Solicitud/Consumo) paginados +
+  //    snapshot fijo de los últimos N consumos de ciclos.
+  //    El listado de Almacenamiento se ordena por fecha desc.
+  static async obtenerInsumos(pageInput?: number, limitInput?: number, search?: string) {
+    const { page, limit, skip } = normalizarPaginacion(pageInput, limitInput);
+
+    // Filtro de búsqueda aplicado al insumo relacionado.
+    const movWhere: Prisma.MovimientoInsumoDetalleWhereInput | undefined = search
+      ? { insumo: { OR: [{ nombre: { contains: search } }, { codigo: { contains: search } }] } }
+      : undefined;
+
+    // Tipo derivado con las relaciones incluidas. Si lo tipamos como
+    // Awaited<...findMany()> Prisma devuelve la forma BASE sin includes.
+    const detalleArgs = Prisma.validator<Prisma.MovimientoInsumoDetalleFindManyArgs>()({
+      include: {
+        movimiento: true,
+        insumo: { include: { unidadMedida: true, presentacion: true, proveedor: true } },
+      },
+    });
+    type DetalleConRelaciones = Prisma.MovimientoInsumoDetalleGetPayload<typeof detalleArgs>;
+
+    let totalMov = 0;
+    let detallesMov: DetalleConRelaciones[] = [];
+    try {
+      [totalMov, detallesMov] = await Promise.all([
+        prisma.movimientoInsumoDetalle.count({ where: movWhere }),
+        prisma.movimientoInsumoDetalle.findMany({
+          ...detalleArgs,
+          where: movWhere,
+          orderBy: { id: 'desc' },
+          skip,
+          take: limit,
+        }),
+      ]);
+    } catch {
+      // Modelo no migrado todavía — seguimos sin movimientos.
+    }
+
+    const desdeMovimientos = detallesMov.map((det) => ({
+      id:                     det.movimiento.id * 10000 + det.id,
+      codigo:                 det.insumo.codigo,
+      nombre:                 det.insumo.nombre,
+      fechaVencimiento:       formatDate(det.movimiento.fecha),
+      tipoMovimiento:         (det.movimiento.tipo === 'Consumo' ? 'Consumido' : 'Solicitado') as 'Consumido' | 'Solicitado',
+      requiereEsterilizacion: det.insumo.requiereEsterilizacion,
+      tipoEsterilizacion:     det.insumo.tipoEsterilizacion    || 'No aplica',
+      unidadMedida:           det.insumo.unidadMedida?.nombre  || 'Unidad',
+      presentacion:           det.insumo.presentacion?.nombre  || 'N/A',
+      proveedor:              det.insumo.proveedor?.nombre     || 'N/A',
+      cantidad:               det.cantidad,
+    }));
+
+    // Snapshot de los últimos 50 consumos de ciclos (no paginado, solo
+    // contextual). Antes era take:100 sin filtro; se reduce a 50 para
+    // evitar 30MB de respuesta cuando hay miles de ciclos.
+    const insumoCicloWhere: Prisma.InsumoCicloWhereInput | undefined = search
+      ? { insumo: { OR: [{ nombre: { contains: search } }, { codigo: { contains: search } }] } }
+      : undefined;
+
     const insumosCiclo = await prisma.insumoCiclo.findMany({
+      where: insumoCicloWhere,
       include: {
         insumo: { include: { unidadMedida: true, presentacion: true, proveedor: true } },
         ciclo:  true,
       },
       orderBy: { id: 'desc' },
-      take: 100,
+      take: 50,
     });
 
     const desdeCiclos = insumosCiclo.map(ic => ({
@@ -82,46 +184,8 @@ export class AlmacenamientoService {
       cantidad:               ic.cantidad,
     }));
 
-    // ✅ Movimientos de solicitud/consumo desde MovimientoInsumo (si existe el modelo)
-    type InsumoRow = Omit<typeof desdeCiclos[0], 'tipoMovimiento'> & {
-      tipoMovimiento: 'Consumido' | 'Solicitado';
-    };
-    let desdeMovimientos: InsumoRow[] = [];
-    try {
-      const movimientos = await prisma.movimientoInsumo.findMany({
-        include: {
-          detalles: {
-            include: {
-              insumo: { include: { unidadMedida: true, presentacion: true, proveedor: true } },
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      });
-
-      type DetalleMov = typeof movimientos[0]['detalles'][0];
-      type MovMov     = typeof movimientos[0];
-      desdeMovimientos = movimientos.flatMap((mov: MovMov) =>
-        mov.detalles.map((det: DetalleMov, idx: number) => ({
-          id:                     mov.id * 10000 + idx,
-          codigo:                 det.insumo.codigo,
-          nombre:                 det.insumo.nombre,
-          fechaVencimiento:       formatDate(mov.fecha),
-          tipoMovimiento:         (mov.tipo === 'Consumo' ? 'Consumido' : 'Solicitado') as 'Consumido' | 'Solicitado',
-          requiereEsterilizacion: det.insumo.requiereEsterilizacion,
-          tipoEsterilizacion:     det.insumo.tipoEsterilizacion    || 'No aplica',
-          unidadMedida:           det.insumo.unidadMedida?.nombre  || 'Unidad',
-          presentacion:           det.insumo.presentacion?.nombre  || 'N/A',
-          proveedor:              det.insumo.proveedor?.nombre     || 'N/A',
-          cantidad:               det.cantidad,
-        }))
-      );
-    } catch {
-      // MovimientoInsumo aún no migrado — continuar sin él
-    }
-
-    return [...desdeMovimientos, ...desdeCiclos];
+    const data = [...desdeMovimientos, ...desdeCiclos];
+    return { data, total: totalMov, totalPages: Math.ceil(totalMov / limit), currentPage: page };
   }
 
   // ── Historial de préstamos ────────────────────────────────────

@@ -122,8 +122,11 @@ export const ciclosController = {
 
   getTableroControl: async (req: Request, res: Response): Promise<void> => {
     try {
-      const ciclosActivos = await CiclosService.obtenerTableroControl();
-      res.json({ success: true, data: ciclosActivos });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const result = await CiclosService.obtenerTableroControl(page, limit, search);
+      res.json({ success: true, ...result });
     } catch (error) {
       console.error("❌ Error al obtener el tablero:", error);
       res.status(500).json({ success: false, message: "Error al cargar el tablero de control." });

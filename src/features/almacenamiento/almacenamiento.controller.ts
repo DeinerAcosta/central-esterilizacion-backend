@@ -5,11 +5,14 @@ import { enviarSetSchema, movimientoInsumoSchema } from './almacenamiento.schema
 
 export const almacenamientoController = {
 
-  // GET /instrumentos
+  // GET /instrumentos?page=&limit=&search=
   obtenerInstrumentos: async (req: Request, res: Response) => {
     try {
-      const data = await AlmacenamientoService.obtenerInstrumentos();
-      return res.json({ success: true, data });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const result = await AlmacenamientoService.obtenerInstrumentos(page, limit, search);
+      return res.json({ success: true, ...result });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error en obtenerInstrumentos:', msg);
@@ -17,11 +20,14 @@ export const almacenamientoController = {
     }
   },
 
-  // GET /kits
+  // GET /kits?page=&limit=&search=
   obtenerKits: async (req: Request, res: Response) => {
     try {
-      const data = await AlmacenamientoService.obtenerKits();
-      return res.json({ success: true, data });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const result = await AlmacenamientoService.obtenerKits(page, limit, search);
+      return res.json({ success: true, ...result });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error en obtenerKits:', msg);
@@ -29,11 +35,14 @@ export const almacenamientoController = {
     }
   },
 
-  // GET /insumos
+  // GET /insumos?page=&limit=&search=
   obtenerInsumos: async (req: Request, res: Response) => {
     try {
-      const data = await AlmacenamientoService.obtenerInsumos();
-      return res.json({ success: true, data });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const result = await AlmacenamientoService.obtenerInsumos(page, limit, search);
+      return res.json({ success: true, ...result });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error en obtenerInsumos:', msg);
