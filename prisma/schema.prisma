@@ -31,36 +31,43 @@ model Usuario {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  hojasDeVidaPropias HojaVidaInstrumento[] @relation("PropietarioInstrumento")
-  reportesCreados    Reporte[]             @relation("UsuarioReporta")
-  ciclosGestionados  CicloEsterilizacion[] @relation("ResponsableCiclo")
+  hojasDeVidaPropias      HojaVidaInstrumento[]          @relation("PropietarioInstrumento")
+  reportesCreados         Reporte[]                      @relation("UsuarioReporta")
+  ciclosGestionados       CicloEsterilizacion[]          @relation("ResponsableCiclo")
   // ✅ NUEVO: movimientos de insumos
-  movimientosInsumo  MovimientoInsumo[]    @relation("MovimientosInsumo")
+  movimientosInsumo       MovimientoInsumo[]             @relation("MovimientosInsumo")
+  // ✅ NUEVO: módulo Informes - Instrumentos de 3ros
+  solicitudesInstrumento  SolicitudRegistroInstrumento[] @relation("SolicitudesUsuario")
+  devolucionesResponsable DevolucionTercero[]            @relation("DevolucionesResponsable")
 }
 
 // ==========================================
 // CONFIGURACIÓN: ESPECIALIDADES Y MARCAS
 // ==========================================
 model Especialidad {
-  id                Int                   @id @default(autoincrement())
-  codigo            String                @unique
-  nombre            String                @unique
-  estado            Boolean               @default(true)
+  id                Int                            @id @default(autoincrement())
+  codigo            String                         @unique
+  nombre            String                         @unique
+  estado            Boolean                        @default(true)
   subespecialidades Subespecialidad[]
   kits              Kit[]
   hojasDeVida       HojaVidaInstrumento[]
+  // ✅ NUEVO: solicitudes de instrumento del módulo Informes
+  solicitudes       SolicitudRegistroInstrumento[] @relation("SolicitudEspecialidad")
 }
 
 model Subespecialidad {
-  id             Int                   @id @default(autoincrement())
-  codigo         String                @unique
+  id             Int                            @id @default(autoincrement())
+  codigo         String                         @unique
   nombre         String
-  estado         Boolean               @default(true)
+  estado         Boolean                        @default(true)
   especialidadId Int
-  especialidad   Especialidad          @relation(fields: [especialidadId], references: [id])
+  especialidad   Especialidad                   @relation(fields: [especialidadId], references: [id])
   tiposSub       TipoSubespecialidad[]
   kits           Kit[]
   hojasDeVida    HojaVidaInstrumento[]
+  // ✅ NUEVO: solicitudes de instrumento del módulo Informes
+  solicitudes    SolicitudRegistroInstrumento[] @relation("SolicitudSubespecialidad")
 }
 
 model TipoSubespecialidad {
@@ -257,6 +264,8 @@ model HojaVidaInstrumento {
   kitsAsignados      InstrumentoEnKit[]
   reportesDano       Reporte[]
   escaneosCiclo      EscaneoInstrumento[]
+  // ✅ NUEVO: link al módulo Informes - Instrumentos de 3ros
+  ingresosTerceros   InstrumentoTercero[] @relation("InstrumentosTercerosLink")
 
   // Índices para queries frecuentes que filtran por estos campos.
   // FKs ya tienen índice automático.
@@ -399,4 +408,140 @@ model MovimientoInsumoDetalle {
   insumoId     Int
   insumo       InsumoQuirurgico @relation("InsumosMovimiento", fields: [insumoId], references: [id])
   cantidad     Int
+}
+
+// ==========================================
+// ✅ NUEVO: MÓDULO INFORMES — INSTRUMENTOS DE TERCEROS
+// ==========================================
+
+// Entidad externa (clínica, hospital, IPS) que envía instrumentos a procesar
+model Entidad {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique
+  nombre    String   @unique
+  nit       String?
+  contacto  String?
+  estado    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ingresos IngresoTercero[]
+}
+
+// Ingreso de instrumentos de un tercero a la central de esterilización
+model IngresoTercero {
+  id           Int      @id @default(autoincrement())
+  idRecepcion  String   @unique
+  fecha        DateTime
+  hora         String
+  entidadId    Int
+  entidad      Entidad  @relation(fields: [entidadId], references: [id])
+  evidenciaUrl String?
+  estado       String   @default("Incompleto") // 'Incompleto' | 'Completo'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instrumentos InstrumentoTercero[]
+  devoluciones DevolucionTercero[]
+
+  @@index([fecha])
+  @@index([estado])
+}
+
+// Línea de instrumento dentro de un ingreso (registrado o no registrado en HojaVida)
+model InstrumentoTercero {
+  id               Int                  @id @default(autoincrement())
+  ingresoId        Int
+  ingreso          IngresoTercero       @relation(fields: [ingresoId], references: [id], onDelete: Cascade)
+  instrumentoId    Int?
+  instrumento      HojaVidaInstrumento? @relation("InstrumentosTercerosLink", fields: [instrumentoId], references: [id])
+  codigoExterno    String?
+  nombreExterno    String?
+  esRegistrado     Boolean              @default(true)
+  cantidad         Int                  @default(1)
+  cantidadDevuelta Int                  @default(0)
+
+  detallesDevolucion DevolucionTerceroDetalle[]
+
+  @@index([ingresoId])
+}
+
+// Devolución (parcial o total) de un ingreso de terceros
+model DevolucionTercero {
+  id            Int            @id @default(autoincrement())
+  ingresoId     Int
+  ingreso       IngresoTercero @relation(fields: [ingresoId], references: [id])
+  fechaSalida   DateTime
+  hora          String
+  responsableId Int?
+  responsable   Usuario?       @relation("DevolucionesResponsable", fields: [responsableId], references: [id])
+  createdAt     DateTime       @default(now())
+
+  detalles DevolucionTerceroDetalle[]
+
+  @@index([fechaSalida])
+}
+
+// Detalle de instrumentos devueltos en una devolución
+model DevolucionTerceroDetalle {
+  id                   Int                @id @default(autoincrement())
+  devolucionId         Int
+  devolucion           DevolucionTercero  @relation(fields: [devolucionId], references: [id], onDelete: Cascade)
+  instrumentoTerceroId Int
+  instrumentoTercero   InstrumentoTercero @relation(fields: [instrumentoTerceroId], references: [id])
+  cantidadDevuelta     Int
+}
+
+// Solicitud de registro de instrumento que no existe en HojaVida
+model SolicitudRegistroInstrumento {
+  id                Int             @id @default(autoincrement())
+  codigo            String          @unique
+  fotoUrl           String?
+  nombre            String
+  especialidadId    Int
+  especialidad      Especialidad    @relation("SolicitudEspecialidad", fields: [especialidadId], references: [id])
+  subespecialidadId Int
+  subespecialidad   Subespecialidad @relation("SolicitudSubespecialidad", fields: [subespecialidadId], references: [id])
+  solicitadoPorId   Int
+  solicitadoPor     Usuario         @relation("SolicitudesUsuario", fields: [solicitadoPorId], references: [id])
+  estado            String          @default("Pendiente") // Pendiente | Aprobado | Rechazado
+  createdAt         DateTime        @default(now())
+
+  @@index([estado])
+}
+
+// ==========================================
+// ✅ NUEVO: MÓDULO INFORMES — INDICADOR DE PAQUETES E INSTRUMENTALES
+// ==========================================
+model IndicadorPaquete {
+  id                 Int      @id @default(autoincrement())
+  fecha              DateTime
+  nombrePaciente     String
+  intervencion       String
+  quirofano          String
+  equipo             String
+  kit                String
+  cantidad           Int      @default(1)
+  indPaqueteUrl      String?
+  indInstrumentalUrl String?
+  createdAt          DateTime @default(now())
+
+  @@index([fecha])
+}
+
+// ==========================================
+// ✅ NUEVO: MÓDULO INFORMES — INDICADOR DE PRIMERA CARGA
+// ==========================================
+model IndicadorPrimeraCarga {
+  id            Int      @id @default(autoincrement())
+  fecha         DateTime
+  lote          String
+  equipo        String?
+  instrumental  String?
+  temperatura   String
+  librasPresion String
+  horaInicio    String
+  horaSalida    String
+  createdAt     DateTime @default(now())
+
+  @@index([fecha])
 }

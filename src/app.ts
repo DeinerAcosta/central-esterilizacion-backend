@@ -19,6 +19,10 @@ import trazabilidadRoutes from './features/trazabilidad/trazabilidad.routes';
 import historicoCicloRoutes from './features/historicociclo/historicociclo.routes';
 import insumosQxRoutes from './features/insumosqx/insumosqx.routes';
 import almacenamientoRoutes from './features/almacenamiento/almacenamiento.routes'; // <-- IMPORTACIÓN DE ALMACENAMIENTO
+import tercerosRoutes from './features/terceros/terceros.routes'; // <-- INFORMES: Instrumentos de 3ros
+import solicitudesInstrumentoRoutes from './features/solicitudesInstrumento/solicitudesInstrumento.routes'; // <-- INFORMES: Solicitudes
+import historialTrasladosRoutes from './features/historialTraslados/historialTraslados.routes'; // <-- INFORMES: Historial de traslados
+import indicadoresRoutes from './features/indicadores/indicadores.routes'; // <-- INFORMES: Indicadores Biológico / Gas
 
 const app = express();
 const PORT = 4000;
@@ -55,7 +59,12 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/trazabilidad', trazabilidadRoutes);
 app.use('/api/historico-ciclo', historicoCicloRoutes);
 app.use('/api/insumosqx', insumosQxRoutes);
-app.use('/api/almacenamiento', almacenamientoRoutes); 
+app.use('/api/almacenamiento', almacenamientoRoutes);
+app.use('/api/terceros', tercerosRoutes);
+app.use('/api/solicitudes-instrumento', solicitudesInstrumentoRoutes);
+app.use('/api/historial-traslados', historialTrasladosRoutes);
+app.use('/api/indicadores', indicadoresRoutes);
+
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
 });

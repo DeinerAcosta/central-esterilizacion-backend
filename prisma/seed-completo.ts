@@ -150,6 +150,13 @@ async function main() {
   console.log('🧹 Limpiando datos previos...');
   // Deshabilitar FK checks en MySQL para poder limpiar en cualquier orden
   await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
+  // ✅ NUEVO: módulo Informes - Instrumentos de 3ros + Solicitudes
+  await prisma.devolucionTerceroDetalle.deleteMany({});
+  await prisma.devolucionTercero.deleteMany({});
+  await prisma.instrumentoTercero.deleteMany({});
+  await prisma.ingresoTercero.deleteMany({});
+  await prisma.entidad.deleteMany({});
+  await prisma.solicitudRegistroInstrumento.deleteMany({});
   await prisma.historialTraslado.deleteMany({});
   await prisma.escaneoInstrumento.deleteMany({});
   await prisma.insumoCiclo.deleteMany({});
@@ -547,6 +554,155 @@ async function main() {
   }
   console.log(`   ✅ ${traslados} traslados`);
 
+  // ── 11. ENTIDADES EXTERNAS (5) ────────────────────────────
+  console.log('\n🏢 Creando entidades externas...');
+  const ENTIDADES_DATA = [
+    { codigo: 'ENT-01', nombre: 'Clínica del Caribe',          nit: '900111222-1', contacto: 'Dra. Patricia Mendoza - 3204567890' },
+    { codigo: 'ENT-02', nombre: 'Hospital Universitario Norte', nit: '900222333-2', contacto: 'Dr. Ricardo Vargas - 3157891234' },
+    { codigo: 'ENT-03', nombre: 'IPS Salud Total',             nit: '900333444-3', contacto: 'Enf. Lucía Castro - 3018765432' },
+    { codigo: 'ENT-04', nombre: 'Centro Médico San Rafael',    nit: '900444555-4', contacto: 'Dr. Felipe Ortiz - 3112345678' },
+    { codigo: 'ENT-05', nombre: 'Clínica Oftálmica Visión',    nit: '900555666-5', contacto: 'Dra. Ana Quintero - 3009876543' },
+  ];
+  const entidades: Awaited<ReturnType<typeof prisma.entidad.create>>[] = [];
+  for (const ed of ENTIDADES_DATA) {
+    const e = await prisma.entidad.create({ data: { ...ed, estado: true } });
+    entidades.push(e);
+  }
+  console.log(`   ✅ ${entidades.length} entidades`);
+
+  // ── 12. INGRESOS DE TERCEROS (15) ─────────────────────────
+  console.log('\n📥 Creando ingresos de instrumentos de 3ros...');
+  const HORAS = ['08:15 am','09:30 am','10:45 am','11:00 am','01:20 pm','02:50 pm','03:30 pm','04:15 pm'];
+  const ingresos: Awaited<ReturnType<typeof prisma.ingresoTercero.create>>[] = [];
+
+  for (let i = 0; i < 15; i++) {
+    const entidad = entidades[i % entidades.length];
+    const cantInstrs = rand(3, 6);
+
+    // Mezcla de instrumentos registrados y no registrados (~70% registrados)
+    const instrumentosData: {
+      instrumentoId: number | null;
+      codigoExterno: string | null;
+      nombreExterno: string | null;
+      esRegistrado: boolean;
+      cantidad: number;
+    }[] = [];
+
+    const elegidos = new Set<number>();
+    for (let j = 0; j < cantInstrs; j++) {
+      const esRegistrado = Math.random() < 0.7;
+      if (esRegistrado) {
+        // elegir un instrumento real único para este ingreso
+        let intento = 0;
+        let inst = instrumentos[rand(0, instrumentos.length - 1)];
+        while (elegidos.has(inst.id) && intento < 10) {
+          inst = instrumentos[rand(0, instrumentos.length - 1)];
+          intento++;
+        }
+        elegidos.add(inst.id);
+        instrumentosData.push({
+          instrumentoId: inst.id,
+          codigoExterno: null,
+          nombreExterno: null,
+          esRegistrado: true,
+          cantidad: rand(1, 3),
+        });
+      } else {
+        instrumentosData.push({
+          instrumentoId: null,
+          codigoExterno: `EXT-${rand(100000, 999999)}`,
+          nombreExterno: pick(INSTRUMENTOS_NOMBRES),
+          esRegistrado: false,
+          cantidad: rand(1, 3),
+        });
+      }
+    }
+
+    const dias = rand(1, 90);
+    const ing = await prisma.ingresoTercero.create({
+      data: {
+        idRecepcion: `${rand(1000000, 9999999)}`,
+        fecha:       past(dias),
+        hora:        pick(HORAS),
+        entidadId:   entidad.id,
+        evidenciaUrl: null,
+        estado:      'Incompleto', // se actualiza si se devuelve todo
+        instrumentos: { create: instrumentosData },
+      },
+    });
+    ingresos.push(ing);
+  }
+  console.log(`   ✅ ${ingresos.length} ingresos`);
+
+  // ── 13. DEVOLUCIONES (10: 6 completas + 4 incompletas) ────
+  console.log('\n📤 Creando devoluciones de instrumentos de 3ros...');
+  let devolucionesCount = 0;
+
+  for (let i = 0; i < 10; i++) {
+    const ingreso = ingresos[i];
+    const lineas = await prisma.instrumentoTercero.findMany({ where: { ingresoId: ingreso.id } });
+    if (lineas.length === 0) continue;
+
+    const completar = i < 6; // los 6 primeros se devuelven completos
+
+    const detalles = lineas.map((l) => ({
+      instrumentoTerceroId: l.id,
+      cantidadDevuelta: completar ? l.cantidad : Math.max(1, Math.floor(l.cantidad / 2)),
+    }));
+
+    await prisma.devolucionTercero.create({
+      data: {
+        ingresoId:     ingreso.id,
+        fechaSalida:   past(rand(0, 30)),
+        hora:          pick(HORAS),
+        responsableId: usuarios[i % usuarios.length].id,
+        detalles:      { create: detalles },
+      },
+    });
+
+    // Actualizar cantidadDevuelta en cada InstrumentoTercero
+    for (const det of detalles) {
+      await prisma.instrumentoTercero.update({
+        where: { id: det.instrumentoTerceroId },
+        data:  { cantidadDevuelta: { increment: det.cantidadDevuelta } },
+      });
+    }
+
+    // Recalcular estado del ingreso
+    const refrescadas = await prisma.instrumentoTercero.findMany({ where: { ingresoId: ingreso.id } });
+    const totalIng = refrescadas.reduce((s, l) => s + l.cantidad, 0);
+    const totalDev = refrescadas.reduce((s, l) => s + l.cantidadDevuelta, 0);
+    await prisma.ingresoTercero.update({
+      where: { id: ingreso.id },
+      data:  { estado: totalDev >= totalIng ? 'Completo' : 'Incompleto' },
+    });
+
+    devolucionesCount++;
+  }
+  console.log(`   ✅ ${devolucionesCount} devoluciones`);
+
+  // ── 14. SOLICITUDES DE REGISTRO DE INSTRUMENTO (5) ────────
+  console.log('\n📋 Creando solicitudes de registro de instrumento...');
+  const ESTADOS_SOL = ['Pendiente','Pendiente','Aprobado','Aprobado','Rechazado'];
+  let solicitudesCount = 0;
+  for (let i = 0; i < 5; i++) {
+    const sub = subespecialidades[i % subespecialidades.length];
+    await prisma.solicitudRegistroInstrumento.create({
+      data: {
+        codigo:            `SRI-${pad2(i + 1)}`,
+        nombre:            `Instrumento por validar #${i + 1} - ${pick(INSTRUMENTOS_NOMBRES)}`,
+        fotoUrl:           null,
+        especialidadId:    sub.especialidadId,
+        subespecialidadId: sub.id,
+        solicitadoPorId:   usuarios[(i + 1) % usuarios.length].id,
+        estado:            ESTADOS_SOL[i],
+        createdAt:         past(rand(1, 60)),
+      },
+    });
+    solicitudesCount++;
+  }
+  console.log(`   ✅ ${solicitudesCount} solicitudes`);
+
   // ── RESUMEN ───────────────────────────────────────────────
   console.log('\n' + '═'.repeat(50));
   console.log('✅ SEED COMPLETADO — DATOS REALES Y LIMPIOS');
@@ -565,12 +721,17 @@ async function main() {
   console.log(`  Ciclos:            ${ciclos.length}`);
   console.log(`  Reportes:          ${reportes.length}`);
   console.log(`  Traslados:         ${traslados}`);
+  console.log(`  Entidades:         ${entidades.length}`);
+  console.log(`  Ingresos 3ros:     ${ingresos.length}`);
+  console.log(`  Devoluciones 3ros: ${devolucionesCount}`);
+  console.log(`  Solicitudes:       ${solicitudesCount}`);
   console.log('═'.repeat(50));
   console.log('\nCódigos usados:');
   console.log('  ESP-01..05 | SUB-01..10 | TS-01..17');
   console.log('  MARC-01..08 | PROV-01..06 | SED-01..04 | QX-01..08');
   console.log('  USR-01..10 | IQ-01..20 | INS-01..40');
   console.log('  KIT-OF/OR/CA/NE/OT-01..02 | CIC-ASG/FIN-01.. | REP-01..17');
+  console.log('  ENT-01..05 | SRI-01..05');
 }
 
 main()
