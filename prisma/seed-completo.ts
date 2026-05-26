@@ -533,12 +533,18 @@ async function main() {
 
   // ── 10. TRASLADOS (10) ────────────────────────────────────
   console.log('\n🚚 Creando traslados...');
+  // Estados del flujo (doc Historial de traslados). "Vencido" se deriva de
+  // estado "En préstamo" con fecha de devolución ya expirada.
+  const ESTADOS_TRASLADO = ['Pendiente', 'Recibido', 'En préstamo', 'Prórroga', 'En préstamo'];
   let traslados = 0;
   for (let i = 0; i < 10; i++) {
     const origen  = sedes[i % sedes.length];
     const destino = sedes[(i + 1) % sedes.length];
     if (origen.id === destino.id) continue;
     const usaKit = i % 2 === 0;
+    const estado = ESTADOS_TRASLADO[i % ESTADOS_TRASLADO.length];
+    // Para que existan registros "Vencido": algunos "En préstamo" con devolución pasada.
+    const vencido = estado === 'En préstamo' && i % 2 === 1;
     await prisma.historialTraslado.create({
       data: {
         instrumentoId:   usaKit ? null : instrumentos[i % instrumentos.length].id,
@@ -546,8 +552,9 @@ async function main() {
         sedeOrigenId:    origen.id,
         sedeDestinoId:   destino.id,
         fechaTraslado:   past(rand(10, 90)),
-        fechaDevolucion: fut(rand(10, 60)),
-        realizadoPor:    'TEST',
+        fechaDevolucion: vencido ? past(rand(1, 15)) : fut(rand(10, 60)),
+        realizadoPor:    (() => { const u = usuarios[rand(0, usuarios.length - 1)]; return `${u.nombre} ${u.apellido}`; })(),
+        estado,
       },
     });
     traslados++;

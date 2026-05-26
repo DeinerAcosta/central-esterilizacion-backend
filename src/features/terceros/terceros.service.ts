@@ -109,6 +109,7 @@ export class TercerosService {
       estado: ingreso.estado,
       instrumentos: ingreso.instrumentos.map((it) => ({
         id: it.id,
+        instrumentoId: it.instrumentoId,
         codigo: it.esRegistrado ? it.instrumento?.codigo : it.codigoExterno,
         nombre: it.esRegistrado ? it.instrumento?.nombre : it.nombreExterno,
         esRegistrado: it.esRegistrado,

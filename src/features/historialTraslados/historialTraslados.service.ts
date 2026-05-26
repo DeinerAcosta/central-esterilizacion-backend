@@ -4,9 +4,15 @@ const prisma = new PrismaClient();
 
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
-/** El modelo HistorialTraslado no guarda un estado explícito: se deriva de las fechas. */
-const derivarEstado = (fechaDevolucion: Date): string =>
-  fechaDevolucion.getTime() <= Date.now() ? 'Devuelto' : 'En Traslado';
+/**
+ * Estado a mostrar según el flujo del documento Historial de traslados.
+ * Se guarda el estado base (Pendiente / Recibido / En préstamo / Prórroga) y
+ * "Vencido" se deriva cuando un traslado "En préstamo" ya pasó su devolución.
+ */
+const derivarEstado = (estadoBase: string, fechaDevolucion: Date): string => {
+  if (estadoBase === 'En préstamo' && fechaDevolucion.getTime() < Date.now()) return 'Vencido';
+  return estadoBase || 'Pendiente';
+};
 
 interface ListarParams {
   page: number;
@@ -71,7 +77,7 @@ export class HistorialTrasladosService {
       tipo: t.kit?.tipoSubespecialidad ?? '—',
       codigoKit: t.kit?.codigoKit ?? '—',
       cantInstr: t.kit?._count.instrumentos ?? 0,
-      estado: derivarEstado(t.fechaDevolucion),
+      estado: derivarEstado(t.estado, t.fechaDevolucion),
     }));
 
     return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
@@ -111,10 +117,151 @@ export class HistorialTrasladosService {
       nombre: t.instrumento?.nombre ?? '—',
       codigo: t.instrumento?.codigo ?? '—',
       responsable: t.realizadoPor ?? '—',
-      estado: derivarEstado(t.fechaDevolucion),
+      estado: derivarEstado(t.estado, t.fechaDevolucion),
     }));
 
     return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
+  }
+
+  // ─── DETALLE DE UN TRASLADO (modal "Detalle", solo lectura) ──
+  // Info general del traslado + listado de kits asociados (Código KIT, KIT).
+  static async obtenerDetalle(trasladoId: number) {
+    const t = await prisma.historialTraslado.findUnique({
+      where: { id: trasladoId },
+      include: {
+        sedeOrigen: true,
+        sedeDestino: true,
+        kit: { include: { especialidad: true, subespecialidad: true } },
+        instrumento: true,
+      },
+    });
+    if (!t) throw new Error('TRASLADO_NO_ENCONTRADO');
+
+    const kits = t.kit ? [{ codigoKit: t.kit.codigoKit, nombre: t.kit.nombre }] : [];
+
+    return {
+      id: t.id,
+      origen: t.sedeOrigen.nombre,
+      destino: t.sedeDestino.nombre,
+      fechaT: fmt(t.fechaTraslado),
+      fechaD: fmt(t.fechaDevolucion),
+      esp: t.kit?.especialidad.nombre ?? '—',
+      sub: t.kit?.subespecialidad.nombre ?? '—',
+      tipo: t.kit?.tipoSubespecialidad ?? '—',
+      estado: derivarEstado(t.estado, t.fechaDevolucion),
+      kits,
+    };
+  }
+
+  // ─── ESTADO INSTRUMENTAL DE UN TRASLADO ─────────────────
+  // Lista los instrumentos del traslado con su estado (Aprobado/Rechazado/
+  // Pendiente). Usado por "Ver aprobado" y "Aprobar recibido".
+  static async obtenerEstadoInstrumental(trasladoId: number, search?: string) {
+    const traslado = await prisma.historialTraslado.findUnique({
+      where: { id: trasladoId },
+      include: {
+        kit: true,
+        instrumentosEstado: {
+          include: {
+            instrumento: { include: { especialidad: true, subespecialidad: true, tipo: true } },
+          },
+        },
+      },
+    });
+    if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
+
+    const fechaT = fmt(traslado.fechaTraslado);
+    const fechaD = fmt(traslado.fechaDevolucion);
+    const kitCodigo = traslado.kit?.codigoKit ?? '—';
+
+    let items = traslado.instrumentosEstado.map((ie) => ({
+      id: ie.id,
+      instrumentoId: ie.instrumentoId,
+      fechaT,
+      fechaD,
+      codigo: ie.instrumento.codigo,
+      nombre: ie.instrumento.nombre,
+      fotoUrl: ie.instrumento.fotoUrl,
+      esp: ie.instrumento.especialidad.nombre,
+      sub: ie.instrumento.subespecialidad.nombre,
+      tipo: ie.instrumento.tipo.nombre,
+      kit: kitCodigo,
+      estado: ie.estado,
+      cantidad: ie.cantidad,
+      tipoDano: ie.tipoDano,
+      descripcion: ie.descripcion,
+    }));
+
+    if (search) {
+      const q = search.toLowerCase();
+      items = items.filter((i) => i.nombre.toLowerCase().includes(q) || i.codigo.toLowerCase().includes(q));
+    }
+
+    return {
+      id: traslado.id,
+      estado: derivarEstado(traslado.estado, traslado.fechaDevolucion),
+      items,
+    };
+  }
+
+  // ─── GUARDAR APROBACIÓN DEL ESTADO INSTRUMENTAL ─────────
+  // Actualiza el estado (Aprobado/Rechazado) de cada instrumento del traslado.
+  // Cuando ya no quedan instrumentos "Pendiente", el traslado pasa a "Recibido".
+  static async guardarAprobacionInstrumental(
+    trasladoId: number,
+    items: { id: number; estado: string; tipoDano?: string | null; descripcion?: string | null }[],
+  ) {
+    const traslado = await prisma.historialTraslado.findUnique({ where: { id: trasladoId } });
+    if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
+
+    // Normaliza el estado (la vista de Trazabilidad usa minúsculas).
+    const normalizar = (e: string) => {
+      const v = e.toLowerCase();
+      if (v === 'aprobado') return 'Aprobado';
+      if (v === 'rechazado') return 'Rechazado';
+      return 'Pendiente';
+    };
+
+    await prisma.$transaction(
+      items.map((it) =>
+        prisma.trasladoInstrumentoEstado.update({
+          where: { id: it.id },
+          data: {
+            estado: normalizar(it.estado),
+            tipoDano: it.tipoDano ?? null,
+            descripcion: it.descripcion ?? null,
+          },
+        }),
+      ),
+    );
+
+    // Si ningún instrumento queda "Pendiente", el traslado se marca "Recibido".
+    const pendientes = await prisma.trasladoInstrumentoEstado.count({
+      where: { trasladoId, estado: 'Pendiente' },
+    });
+    if (pendientes === 0) {
+      await prisma.historialTraslado.update({ where: { id: trasladoId }, data: { estado: 'Recibido' } });
+    }
+
+    return this.obtenerEstadoInstrumental(trasladoId);
+  }
+
+  // ─── PRÓRROGA: actualizar fecha de devolución ───────────
+  // Cambia la fecha de devolución y deja el traslado en "En préstamo".
+  // Usado por estado "Prórroga" (Ver detalle) y "Vencido" (Solicitar prórroga).
+  static async actualizarProrroga(trasladoId: number, fechaDevolucion: string) {
+    const traslado = await prisma.historialTraslado.findUnique({ where: { id: trasladoId } });
+    if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
+
+    await prisma.historialTraslado.update({
+      where: { id: trasladoId },
+      data: {
+        fechaDevolucion: new Date(`${fechaDevolucion}T00:00:00.000Z`),
+        estado: 'En préstamo',
+      },
+    });
+
+    return this.obtenerDetalle(trasladoId);
   }
 
   // ─── CONTENIDO DE UN KIT TRASLADADO (vista detalle) ─────
