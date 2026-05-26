@@ -22,22 +22,31 @@ export class ReportesService {
       ];
     }
 
-    const [total, reportes] = await Promise.all([
-      prisma.reporte.count({ where: whereClause }),
-      prisma.reporte.findMany({
-        where: whereClause,
-        skip,
-        take: limit,
-        include: {
-          instrumento: {
-            include: { especialidad: true, kit: true }
-          },
-          reportadoPor: { select: { nombre: true, apellido: true } },
-          proveedorMantenimiento: { select: { nombre: true } }
+    // Traemos todos los registros que cumplen el filtro y ordenamos por estado
+    // (Pendiente → En curso → Finalizado) y luego por fecha desc. La paginación
+    // se hace en memoria porque el orden por estado es personalizado.
+    const todos = await prisma.reporte.findMany({
+      where: whereClause,
+      include: {
+        instrumento: {
+          include: { especialidad: true, kit: true }
         },
-        orderBy: { createdAt: 'desc' }
-      })
-    ]);
+        reportadoPor: { select: { nombre: true, apellido: true } },
+        proveedorMantenimiento: { select: { nombre: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const prioridad: Record<string, number> = { 'Pendiente': 0, 'En curso': 1, 'Finalizado': 2 };
+    todos.sort((a, b) => {
+      const pa = prioridad[a.estado] ?? 99;
+      const pb = prioridad[b.estado] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    const total = todos.length;
+    const reportes = todos.slice(skip, skip + limit);
 
     return { total, reportes };
   }

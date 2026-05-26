@@ -12,8 +12,21 @@ const PACIENTES = [
   'Luis Fernando Mejía', 'Marta Restrepo Díaz', 'Jorge Iván Cabrera', 'Sofía Vergara Ríos',
   'Andrés Quintero Sáenz', 'Valentina Ospina Cano',
 ];
+const OFTALMOLOGOS = [
+  'Juan Gallardo Torres', 'Laura Restrepo Vélez', 'Carlos Mendoza Pérez', 'Diana Ríos Acosta',
+  'Ricardo Salcedo Mora', 'Paula Andrea Gómez',
+];
+const INSTRUMENTADORES = [
+  'Michel Jiménez Martínez', 'Sara Beltrán Ruiz', 'Andrés Felipe Cano', 'Karen Vargas León',
+  'Mónica Lozano Díaz', 'Esteban Quintana Ruiz',
+];
+const RESPONSABLES = [
+  'Felipe Cantillo Lara', 'Pedro Padilla Gonzáles', 'Ana Maria Llanos Trespalacios',
+  'Camila Sotomayor Pedraza', 'Rubén Torres Gutierrez', 'Ernesto Cárdenas Fernandez',
+];
 const INTERVENCIONES = ['Plástica', 'Catarata', 'Córnea', 'Retina', 'Glaucoma'];
 const EQUIPOS = ['Plástico', 'Microcirugía', 'Facoemulsificación', 'Vitrectomía'];
+const QUIROFANOS = ['Heiss Gmb & Co.', 'Quirófano 1', 'Quirófano 2', 'Quirófano 3', 'Quirófano 4'];
 
 async function main() {
   console.log('🌱 Seed Indicadores (Paquetes + Primera Carga)...');
@@ -28,12 +41,20 @@ async function main() {
 
   // ── Indicador de paquetes e instrumentales (12) ──
   for (let i = 0; i < 12; i++) {
+    const h = rand(7, 16);
+    const ampm = h < 12 ? 'am' : 'pm';
+    const h12 = h <= 12 ? h : h - 12;
     await prisma.indicadorPaquete.create({
       data: {
         fecha: past(rand(1, 120)),
+        hora: `${pad2(h12)}:${pick(['00', '15', '30', '45'])}${ampm}`,
+        codigo: String(rand(2000, 7999)),
         nombrePaciente: PACIENTES[i % PACIENTES.length],
+        nombreOftalmologo: pick(OFTALMOLOGOS),
+        nombreInstrumentador: pick(INSTRUMENTADORES),
+        responsable: RESPONSABLES[i % RESPONSABLES.length],
         intervencion: pick(INTERVENCIONES),
-        quirofano: String(rand(1, 10)),
+        quirofano: pick(QUIROFANOS),
         equipo: pick(EQUIPOS),
         kit: pick(kitCodes),
         cantidad: rand(1, 3),

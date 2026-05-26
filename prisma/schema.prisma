@@ -264,6 +264,7 @@ model HojaVidaInstrumento {
   kitsAsignados      InstrumentoEnKit[]
   reportesDano       Reporte[]
   escaneosCiclo      EscaneoInstrumento[]
+  trasladoEstados    TrasladoInstrumentoEstado[]
   // ✅ NUEVO: link al módulo Informes - Instrumentos de 3ros
   ingresosTerceros   InstrumentoTercero[] @relation("InstrumentosTercerosLink")
 
@@ -289,6 +290,25 @@ model HistorialTraslado {
   fechaTraslado   DateTime             @default(now())
   fechaDevolucion DateTime
   realizadoPor    String?              @default("Sistema")
+  estado          String               @default("Pendiente")
+
+  instrumentosEstado TrasladoInstrumentoEstado[]
+}
+
+// Estado individual (Aprobado / Rechazado / Pendiente) de cada instrumento
+// dentro de un traslado entre sedes (doc Historial de traslados).
+model TrasladoInstrumentoEstado {
+  id            Int                 @id @default(autoincrement())
+  trasladoId    Int
+  traslado      HistorialTraslado   @relation(fields: [trasladoId], references: [id], onDelete: Cascade)
+  instrumentoId Int
+  instrumento   HojaVidaInstrumento @relation(fields: [instrumentoId], references: [id])
+  estado        String              @default("Pendiente")
+  cantidad      Int                 @default(1)
+  tipoDano      String?
+  descripcion   String?
+
+  @@index([trasladoId])
 }
 
 // ==========================================
@@ -513,17 +533,22 @@ model SolicitudRegistroInstrumento {
 // ✅ NUEVO: MÓDULO INFORMES — INDICADOR DE PAQUETES E INSTRUMENTALES
 // ==========================================
 model IndicadorPaquete {
-  id                 Int      @id @default(autoincrement())
-  fecha              DateTime
-  nombrePaciente     String
-  intervencion       String
-  quirofano          String
-  equipo             String
-  kit                String
-  cantidad           Int      @default(1)
-  indPaqueteUrl      String?
-  indInstrumentalUrl String?
-  createdAt          DateTime @default(now())
+  id                   Int      @id @default(autoincrement())
+  fecha                DateTime
+  hora                 String?
+  codigo               String?
+  nombrePaciente       String
+  nombreOftalmologo    String?
+  nombreInstrumentador String?
+  responsable          String?
+  intervencion         String
+  quirofano            String
+  equipo               String
+  kit                  String
+  cantidad             Int      @default(1)
+  indPaqueteUrl        String?
+  indInstrumentalUrl   String?
+  createdAt            DateTime @default(now())
 
   @@index([fecha])
 }
