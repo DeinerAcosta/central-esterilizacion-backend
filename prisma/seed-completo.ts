@@ -58,7 +58,10 @@ const QX_NOMBRES  = ['Quirófano Central 1','Quirófano Central 2','Sala de Ciru
 
 const TIPOS_SELLADO = ['Papel crepé','Papel grado médico','Tela no tejida'];
 const TIPOS_EMPAQUE = ['Bolsa mixta papel/polietileno','Contenedor rígido inoxidable','Papel de empaque especial'];
-const TIPOS_ESTERIL = ['Autoclave de vapor','Statim 2000S','Óxido de etileno'];
+// Statim 2000 / Statim 5000 son los equipos de la clínica para indicador biológico.
+// 'Óxido de etileno' = indicador a gas (autoclave).
+const TIPOS_ESTERIL = ['Statim 2000', 'Statim 5000', 'Óxido de etileno'];
+const valorBio = (i: number) => (i % 9 === 0 ? '(+)' : '(-)'); // mayoría negativos, alguno positivo
 const TIPOS_DANO    = ['Deterioro por uso','Defectuoso de fábrica','Fractura/Partido','Corrosión','Deformación'];
 
 const DESCS_DANO = [
@@ -441,7 +444,7 @@ async function main() {
         lote:                  `LOTE-${rand(1000, 9999)}-${new Date().getFullYear()}`,
         tipoEsterilizacion:    TIPOS_ESTERIL[i % TIPOS_ESTERIL.length],
         autoclaveTipo:         i % 2 === 0 ? 'Vapor saturado' : 'Gas frío',
-        valorIndicador:        `${rand(121, 134)}°C`,
+        valorIndicador:        valorBio(i),
         destinoSet:            'Distribución (A Quirófano)',
         sedeDestinoId:         sede.id,
         quirofanoDestino:      QX_NOMBRES[i % QX_NOMBRES.length],
@@ -479,7 +482,7 @@ async function main() {
         lote:                  `LOTE-${rand(1000, 9999)}-${new Date().getFullYear()}`,
         tipoEsterilizacion:    TIPOS_ESTERIL[i % TIPOS_ESTERIL.length],
         autoclaveTipo:         i % 2 === 0 ? 'Vapor saturado' : 'Gas frío',
-        valorIndicador:        `${rand(121, 134)}°C`,
+        valorIndicador:        valorBio(i),
         destinoSet:            usaAlmac ? 'Almacenamiento (Stock)' : 'Distribución (A Quirófano)',
         sedeDestinoId:         sede.id,
         quirofanoDestino:      usaAlmac ? null : QX_NOMBRES[i % QX_NOMBRES.length],
