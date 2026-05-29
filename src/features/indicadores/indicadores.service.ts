@@ -5,15 +5,17 @@ const prisma = new PrismaClient();
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 /**
- * Tipo de esterilización (campo CicloEsterilizacion.tipoEsterilizacion) asociado
- * a cada pantalla de indicadores de Informes.
+ * Tipos de esterilización (campo CicloEsterilizacion.tipoEsterilizacion) que
+ * alimentan cada pantalla de indicadores en Informes.
+ *  - "biologico" → equipos Statim 2000 y Statim 5000.
+ *  - "gas"       → Óxido de etileno (autoclave).
  */
-const TIPO_POR_INDICADOR = {
-  biologico: 'Statim 2000S',
-  gas: 'Óxido de etileno',
+const TIPOS_POR_INDICADOR = {
+  biologico: ['Statim 2000', 'Statim 5000'],
+  gas: ['Óxido de etileno'],
 } as const;
 
-export type TipoIndicador = keyof typeof TIPO_POR_INDICADOR;
+export type TipoIndicador = keyof typeof TIPOS_POR_INDICADOR;
 
 interface ListarParams {
   page: number;
@@ -33,7 +35,7 @@ export class IndicadoresService {
     const skip = (page - 1) * limit;
 
     const where: Prisma.CicloEsterilizacionWhereInput = {
-      tipoEsterilizacion: TIPO_POR_INDICADOR[tipo],
+      tipoEsterilizacion: { in: [...TIPOS_POR_INDICADOR[tipo]] },
     };
 
     if (fechaDesde || fechaHasta) {
@@ -50,27 +52,44 @@ export class IndicadoresService {
       ];
     }
 
-    const [total, ciclos] = await Promise.all([
-      prisma.cicloEsterilizacion.count({ where }),
-      prisma.cicloEsterilizacion.findMany({
-        where,
-        skip,
-        take: limit,
-        include: { kit: true, responsable: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    // Traemos todos los ciclos del rango/filtro y calculamos el correlativo
+    // "#N" por (equipo, día) — ej: "Statim 2000 + 3" = la 3ª carga del Statim 2000 ese día.
+    const todos = await prisma.cicloEsterilizacion.findMany({
+      where,
+      include: { kit: true, responsable: true },
+      orderBy: { createdAt: 'asc' },
+    });
 
-    const data = ciclos.map((c) => ({
-      id: c.id,
-      fecha: fmt(c.createdAt),
-      codigoCiclo: c.codigoCiclo,
-      lote: c.lote ?? '—',
-      valorIndicador: c.valorIndicador ?? '—',
-      indicadorUrl: c.indicadorUrl,
-      kit: c.kit?.codigoKit ?? '—',
-      responsable: c.responsable ? `${c.responsable.nombre} ${c.responsable.apellido}` : '—',
-      estado: c.estadoGlobal,
+    const contador = new Map<string, number>(); // key = `${equipo}|${fecha}`
+    const enriquecidos = todos.map((c) => {
+      const equipo = c.tipoEsterilizacion ?? '';
+      const fecha = fmt(c.createdAt);
+      const key = `${equipo}|${fecha}`;
+      const n = (contador.get(key) ?? 0) + 1;
+      contador.set(key, n);
+      return {
+        id: c.id,
+        fecha,
+        codigoCiclo: c.codigoCiclo,
+        // Nombre con el formato que usa la clínica: "Statim 2000 + 3".
+        nombre: equipo ? `${equipo} + ${n}` : c.codigoCiclo,
+        lote: c.lote ?? '—',
+        valorIndicador: c.valorIndicador ?? '—',
+        indicadorUrl: c.indicadorUrl,
+        kit: c.kit?.codigoKit ?? '—',
+        responsable: c.responsable ? `${c.responsable.nombre} ${c.responsable.apellido}` : '—',
+        estado: c.estadoGlobal,
+        createdAt: c.createdAt,
+      };
+    });
+
+    // Orden visible: más reciente primero. Y paginamos en memoria.
+    enriquecidos.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const total = enriquecidos.length;
+    const data = enriquecidos.slice(skip, skip + limit).map((e) => ({
+      id: e.id, fecha: e.fecha, codigoCiclo: e.codigoCiclo, nombre: e.nombre,
+      lote: e.lote, valorIndicador: e.valorIndicador, indicadorUrl: e.indicadorUrl,
+      kit: e.kit, responsable: e.responsable, estado: e.estado,
     }));
 
     return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
@@ -188,10 +207,23 @@ export class IndicadoresService {
       else agrupados.set(key, { codigo: ie.instrumento.codigo, nombre: ie.instrumento.nombre, cantidad: 1 });
     }
 
+    // Calcular el correlativo "#N" del ciclo dentro de su (equipo, día).
+    let nombreFmt = c.codigoCiclo;
+    if (c.tipoEsterilizacion) {
+      const inicioDia = new Date(c.createdAt); inicioDia.setUTCHours(0, 0, 0, 0);
+      const previos = await prisma.cicloEsterilizacion.count({
+        where: {
+          tipoEsterilizacion: c.tipoEsterilizacion,
+          createdAt: { gte: inicioDia, lte: c.createdAt },
+        },
+      });
+      nombreFmt = `${c.tipoEsterilizacion} + ${previos}`;
+    }
+
     return {
       id: c.id,
       fecha: fmt(c.createdAt),
-      nombre: c.codigoCiclo,
+      nombre: nombreFmt,
       valor: c.valorIndicador ?? '—',
       evidenciaUrl: c.indicadorUrl,
       especialidad: c.kit?.especialidad.nombre ?? '—',
