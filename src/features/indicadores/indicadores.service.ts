@@ -67,14 +67,27 @@ export class IndicadoresService {
       const key = `${equipo}|${fecha}`;
       const n = (contador.get(key) ?? 0) + 1;
       contador.set(key, n);
+
+      // Formato libreta de la clínica: Nombre = "Statim", Valor = "{modelo} + {N}".
+      // Ej. tipoEsterilizacion="Statim 2000" → Nombre="Statim", Valor="2000 + 3".
+      let nombreFmt = equipo || c.codigoCiclo;
+      let valorFmt = `${n}`;
+      if (equipo.startsWith('Statim ')) {
+        nombreFmt = 'Statim';
+        const modelo = equipo.replace('Statim ', '');
+        valorFmt = `${modelo} + ${n}`;
+      }
+
       return {
         id: c.id,
         fecha,
         codigoCiclo: c.codigoCiclo,
-        // Nombre con el formato que usa la clínica: "Statim 2000 + 3".
-        nombre: equipo ? `${equipo} + ${n}` : c.codigoCiclo,
+        nombre: nombreFmt,
         lote: c.lote ?? '—',
-        valorIndicador: c.valorIndicador ?? '—',
+        // 'valorIndicador' en el listado = "{modelo} + {N}" (formato libreta).
+        valorIndicador: valorFmt,
+        // 'resultado' = lectura biológica (-)/(+) que sigue en la BD.
+        resultado: c.valorIndicador ?? '—',
         indicadorUrl: c.indicadorUrl,
         kit: c.kit?.codigoKit ?? '—',
         responsable: c.responsable ? `${c.responsable.nombre} ${c.responsable.apellido}` : '—',
@@ -88,8 +101,8 @@ export class IndicadoresService {
     const total = enriquecidos.length;
     const data = enriquecidos.slice(skip, skip + limit).map((e) => ({
       id: e.id, fecha: e.fecha, codigoCiclo: e.codigoCiclo, nombre: e.nombre,
-      lote: e.lote, valorIndicador: e.valorIndicador, indicadorUrl: e.indicadorUrl,
-      kit: e.kit, responsable: e.responsable, estado: e.estado,
+      lote: e.lote, valorIndicador: e.valorIndicador, resultado: e.resultado,
+      indicadorUrl: e.indicadorUrl, kit: e.kit, responsable: e.responsable, estado: e.estado,
     }));
 
     return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
@@ -207,8 +220,9 @@ export class IndicadoresService {
       else agrupados.set(key, { codigo: ie.instrumento.codigo, nombre: ie.instrumento.nombre, cantidad: 1 });
     }
 
-    // Calcular el correlativo "#N" del ciclo dentro de su (equipo, día).
+    // Calcular el correlativo "+N" y aplicar el formato libreta (Nombre/Valor).
     let nombreFmt = c.codigoCiclo;
+    let valorFmt = c.valorIndicador ?? '—';
     if (c.tipoEsterilizacion) {
       const inicioDia = new Date(c.createdAt); inicioDia.setUTCHours(0, 0, 0, 0);
       const previos = await prisma.cicloEsterilizacion.count({
@@ -217,14 +231,22 @@ export class IndicadoresService {
           createdAt: { gte: inicioDia, lte: c.createdAt },
         },
       });
-      nombreFmt = `${c.tipoEsterilizacion} + ${previos}`;
+      if (c.tipoEsterilizacion.startsWith('Statim ')) {
+        nombreFmt = 'Statim';
+        const modelo = c.tipoEsterilizacion.replace('Statim ', '');
+        valorFmt = `${modelo} + ${previos}`;
+      } else {
+        nombreFmt = c.tipoEsterilizacion;
+        valorFmt = `${previos}`;
+      }
     }
 
     return {
       id: c.id,
       fecha: fmt(c.createdAt),
       nombre: nombreFmt,
-      valor: c.valorIndicador ?? '—',
+      valor: valorFmt,
+      resultado: c.valorIndicador ?? '—',
       evidenciaUrl: c.indicadorUrl,
       especialidad: c.kit?.especialidad.nombre ?? '—',
       subespecialidad: c.kit?.subespecialidad.nombre ?? '—',
