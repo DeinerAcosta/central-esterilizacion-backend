@@ -26,6 +26,7 @@ const RESPONSABLES = [
 ];
 const INTERVENCIONES = ['Plástica', 'Catarata', 'Córnea', 'Retina', 'Glaucoma'];
 const EQUIPOS = ['Plástico', 'Microcirugía', 'Facoemulsificación', 'Vitrectomía'];
+const EQUIPOS_PRIMERA_CARGA = ['Statim', 'Autoclave']; // El form solo permite estos dos
 const QUIROFANOS = ['Heiss Gmb & Co.', 'Quirófano 1', 'Quirófano 2', 'Quirófano 3', 'Quirófano 4'];
 
 async function main() {
@@ -38,6 +39,10 @@ async function main() {
   // Kits reales para referenciar su código
   const kits = await prisma.kit.findMany({ select: { codigoKit: true } });
   const kitCodes = kits.length ? kits.map((k) => k.codigoKit) : ['KIT-OF-01', 'KIT-OF-02'];
+
+  // Usuarios reales para asignar como responsable
+  const usuarios = await prisma.usuario.findMany({ select: { id: true }, take: 20 });
+  const usuariosIds = usuarios.map((u) => u.id);
 
   // ── Indicador de paquetes e instrumentales (12) ──
   for (let i = 0; i < 12; i++) {
@@ -66,18 +71,27 @@ async function main() {
   console.log('   ✅ 12 indicadores de paquetes');
 
   // ── Indicador de primera carga (10) ──
+  // El form acepta múltiples kits → guardamos varios códigos separados por coma
   for (let i = 0; i < 10; i++) {
     const inicio = rand(6, 10);
+    // 1 a 4 kits aleatorios sin repetir
+    const cantidadKits = rand(1, Math.min(4, kitCodes.length));
+    const kitsUnicos: string[] = [];
+    while (kitsUnicos.length < cantidadKits) {
+      const k = pick(kitCodes);
+      if (!kitsUnicos.includes(k)) kitsUnicos.push(k);
+    }
     await prisma.indicadorPrimeraCarga.create({
       data: {
         fecha: past(rand(1, 200)),
         lote: `${rand(5000, 5999)}/${rand(1, 3)}`,
-        equipo: pick(EQUIPOS),
-        instrumental: `Set ${pad2(i + 1)}`,
+        equipo: pick(EQUIPOS_PRIMERA_CARGA),
+        instrumental: kitsUnicos.join(', '),
         temperatura: `${rand(121, 138)}°C`,
         librasPresion: `${rand(28, 32)}lb`,
         horaInicio: `${inicio}:00 am`,
         horaSalida: `${inicio + 1}:20 pm`,
+        ...(usuariosIds.length ? { responsableId: pick(usuariosIds) } : {}),
       },
     });
   }
