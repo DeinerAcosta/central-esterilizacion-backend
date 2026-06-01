@@ -179,7 +179,10 @@ export class IndicadoresService {
 
     const [total, registros] = await Promise.all([
       prisma.indicadorPrimeraCarga.count({ where }),
-      prisma.indicadorPrimeraCarga.findMany({ where, skip, take: limit, orderBy: { fecha: 'desc' } }),
+      prisma.indicadorPrimeraCarga.findMany({
+        where, skip, take: limit, orderBy: { fecha: 'desc' },
+        include: { responsable: { select: { nombre: true, apellido: true } } },
+      }),
     ]);
 
     const data = registros.map((r, idx) => ({
@@ -193,9 +196,50 @@ export class IndicadoresService {
       presion: r.librasPresion,
       inicio: r.horaInicio,
       salida: r.horaSalida,
+      responsable: r.responsable ? `${r.responsable.nombre} ${r.responsable.apellido}` : '—',
+      integradorFisicoUrl: r.integradorFisicoUrl,
+      indicadorBiologicoUrl: r.indicadorBiologicoUrl,
+      indicadorQuimicoUrl: r.indicadorQuimicoUrl,
     }));
 
     return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
+  }
+
+  // ─── CREAR registro de Indicador de Primera Carga ──────
+  // Valida el PIN del responsable, guarda los datos y las 3 evidencias.
+  static async crearPrimeraCarga(payload: {
+    codigoVerificacion: string;
+    fecha: string;
+    lote: string;
+    equipo: string;
+    instrumental: string;
+    temperatura: string;
+    librasPresion: string;
+    horaInicio: string;
+    horaSalida: string;
+  }, files: { integradorFisico?: string; indicadorBiologico?: string; indicadorQuimico?: string }) {
+    const usuario = await prisma.usuario.findFirst({
+      where: { codigoVerificacion: String(payload.codigoVerificacion), estado: true },
+    });
+    if (!usuario) throw new Error('PIN_INVALIDO');
+
+    const registro = await prisma.indicadorPrimeraCarga.create({
+      data: {
+        fecha: new Date(`${payload.fecha}T00:00:00.000Z`),
+        lote: payload.lote,
+        equipo: payload.equipo,
+        instrumental: payload.instrumental,
+        temperatura: payload.temperatura,
+        librasPresion: payload.librasPresion,
+        horaInicio: payload.horaInicio,
+        horaSalida: payload.horaSalida,
+        responsableId: usuario.id,
+        integradorFisicoUrl: files.integradorFisico ?? null,
+        indicadorBiologicoUrl: files.indicadorBiologico ?? null,
+        indicadorQuimicoUrl: files.indicadorQuimico ?? null,
+      },
+    });
+    return registro;
   }
 
   // ─── DETALLE DE UN INDICADOR (Statim / Autoclave) ───────

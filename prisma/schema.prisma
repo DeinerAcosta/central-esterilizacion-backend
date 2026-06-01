@@ -39,6 +39,7 @@ model Usuario {
   // ✅ NUEVO: módulo Informes - Instrumentos de 3ros
   solicitudesInstrumento  SolicitudRegistroInstrumento[] @relation("SolicitudesUsuario")
   devolucionesResponsable DevolucionTercero[]            @relation("DevolucionesResponsable")
+  primerasCargas          IndicadorPrimeraCarga[]        @relation("ResponsablePrimeraCarga")
 }
 
 // ==========================================
@@ -557,16 +558,21 @@ model IndicadorPaquete {
 // ✅ NUEVO: MÓDULO INFORMES — INDICADOR DE PRIMERA CARGA
 // ==========================================
 model IndicadorPrimeraCarga {
-  id            Int      @id @default(autoincrement())
-  fecha         DateTime
-  lote          String
-  equipo        String?
-  instrumental  String?
-  temperatura   String
-  librasPresion String
-  horaInicio    String
-  horaSalida    String
-  createdAt     DateTime @default(now())
+  id                    Int       @id @default(autoincrement())
+  fecha                 DateTime
+  lote                  String
+  equipo                String?
+  instrumental          String?
+  temperatura           String
+  librasPresion         String
+  horaInicio            String
+  horaSalida            String
+  responsableId         Int?
+  responsable           Usuario?  @relation("ResponsablePrimeraCarga", fields: [responsableId], references: [id])
+  integradorFisicoUrl   String?
+  indicadorBiologicoUrl String?
+  indicadorQuimicoUrl   String?
+  createdAt             DateTime  @default(now())
 
   @@index([fecha])
 }
