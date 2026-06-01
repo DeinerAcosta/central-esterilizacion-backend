@@ -58,9 +58,10 @@ const QX_NOMBRES  = ['Quirófano Central 1','Quirófano Central 2','Sala de Ciru
 
 const TIPOS_SELLADO = ['Papel crepé','Papel grado médico','Tela no tejida'];
 const TIPOS_EMPAQUE = ['Bolsa mixta papel/polietileno','Contenedor rígido inoxidable','Papel de empaque especial'];
-// Statim 2000 / Statim 5000 son los equipos de la clínica para indicador biológico.
-// 'Óxido de etileno' = indicador a gas (autoclave).
-const TIPOS_ESTERIL = ['Statim 2000', 'Statim 5000', 'Óxido de etileno'];
+// Equipos de la clínica:
+//  - 'Statim 2000' / 'Statim 5000' → indicador biológico.
+//  - 'Gas' / 'Vapor'               → autoclave (dos tipos).
+const TIPOS_ESTERIL = ['Statim 2000', 'Statim 5000', 'Gas', 'Vapor'];
 const valorBio = (i: number) => (i % 9 === 0 ? '(+)' : '(-)'); // mayoría negativos, alguno positivo
 const TIPOS_DANO    = ['Deterioro por uso','Defectuoso de fábrica','Fractura/Partido','Corrosión','Deformación'];
 
