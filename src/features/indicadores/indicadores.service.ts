@@ -4,6 +4,10 @@ const prisma = new PrismaClient();
 
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
+// Hora del ciclo (formato 12h en es-CO: "08:35 a. m.").
+const fmtHora = (d: Date) =>
+  d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
 /**
  * Tipos de esterilización (campo CicloEsterilizacion.tipoEsterilizacion) que
  * alimentan cada pantalla de indicadores en Informes.
@@ -12,7 +16,7 @@ const fmt = (d: Date) => d.toISOString().split('T')[0];
  */
 const TIPOS_POR_INDICADOR = {
   biologico: ['Statim 2000', 'Statim 5000'],
-  gas: ['Óxido de etileno'],
+  gas: ['Gas', 'Vapor'],
 } as const;
 
 export type TipoIndicador = keyof typeof TIPOS_POR_INDICADOR;
@@ -68,25 +72,27 @@ export class IndicadoresService {
       const n = (contador.get(key) ?? 0) + 1;
       contador.set(key, n);
 
-      // Formato libreta de la clínica: Nombre = "Statim", Valor = "{modelo} + {N}".
-      // Ej. tipoEsterilizacion="Statim 2000" → Nombre="Statim", Valor="2000 + 3".
+      // Formato libreta de la clínica:
+      //   Statim → Nombre="Statim",  Valor="{modelo} + {N}"  ej. "Statim" / "2000 + 3".
+      //   Autoclave Gas/Vapor → Nombre="Gas|Vapor", Valor="+ {N}"  ej. "Gas" / "+ 2".
       let nombreFmt = equipo || c.codigoCiclo;
-      let valorFmt = `${n}`;
+      let valorFmt = `+ ${n}`;
       if (equipo.startsWith('Statim ')) {
         nombreFmt = 'Statim';
         const modelo = equipo.replace('Statim ', '');
         valorFmt = `${modelo} + ${n}`;
+      } else if (equipo) {
+        nombreFmt = equipo; // 'Gas' o 'Vapor'
       }
 
       return {
         id: c.id,
         fecha,
+        hora: fmtHora(c.createdAt),
         codigoCiclo: c.codigoCiclo,
         nombre: nombreFmt,
         lote: c.lote ?? '—',
-        // 'valorIndicador' en el listado = "{modelo} + {N}" (formato libreta).
         valorIndicador: valorFmt,
-        // 'resultado' = lectura biológica (-)/(+) que sigue en la BD.
         resultado: c.valorIndicador ?? '—',
         indicadorUrl: c.indicadorUrl,
         kit: c.kit?.codigoKit ?? '—',
@@ -100,7 +106,7 @@ export class IndicadoresService {
     enriquecidos.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const total = enriquecidos.length;
     const data = enriquecidos.slice(skip, skip + limit).map((e) => ({
-      id: e.id, fecha: e.fecha, codigoCiclo: e.codigoCiclo, nombre: e.nombre,
+      id: e.id, fecha: e.fecha, hora: e.hora, codigoCiclo: e.codigoCiclo, nombre: e.nombre,
       lote: e.lote, valorIndicador: e.valorIndicador, resultado: e.resultado,
       indicadorUrl: e.indicadorUrl, kit: e.kit, responsable: e.responsable, estado: e.estado,
     }));
@@ -236,14 +242,15 @@ export class IndicadoresService {
         const modelo = c.tipoEsterilizacion.replace('Statim ', '');
         valorFmt = `${modelo} + ${previos}`;
       } else {
-        nombreFmt = c.tipoEsterilizacion;
-        valorFmt = `${previos}`;
+        nombreFmt = c.tipoEsterilizacion;   // 'Gas' o 'Vapor'
+        valorFmt = `+ ${previos}`;
       }
     }
 
     return {
       id: c.id,
       fecha: fmt(c.createdAt),
+      hora: fmtHora(c.createdAt),
       nombre: nombreFmt,
       valor: valorFmt,
       resultado: c.valorIndicador ?? '—',

@@ -69,6 +69,7 @@ export class HistorialTrasladosService {
     const data = traslados.map((t) => ({
       id: t.id,
       fechaT: fmt(t.fechaTraslado),
+      horaT: t.fechaTraslado.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
       fechaD: fmt(t.fechaDevolucion),
       origen: t.sedeOrigen.nombre,
       destino: t.sedeDestino.nombre,
@@ -111,6 +112,7 @@ export class HistorialTrasladosService {
     const data = traslados.map((t) => ({
       id: t.id,
       fechaT: fmt(t.fechaTraslado),
+      horaT: t.fechaTraslado.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
       fechaD: fmt(t.fechaDevolucion),
       origen: t.sedeOrigen.nombre,
       destino: t.sedeDestino.nombre,
