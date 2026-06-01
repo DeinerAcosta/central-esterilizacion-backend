@@ -19,6 +19,25 @@ export const getHojasVida = async (req: Request, res: Response) => {
   }
 };
 
+export const getHojaVidaById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ msg: 'Id inválido' });
+      return;
+    }
+    const item = await HojaVidasService.obtenerPorId(id);
+    if (!item) {
+      res.status(404).json({ msg: 'Hoja de vida no encontrada' });
+      return;
+    }
+    res.json({ data: item });
+  } catch (error) {
+    console.error('Error al obtener hoja de vida por id:', error);
+    res.status(500).json({ msg: 'Error al obtener la hoja de vida' });
+  }
+};
+
 export const createHojaVida = async (req: Request, res: Response): Promise<void> => {
   try {
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;   
