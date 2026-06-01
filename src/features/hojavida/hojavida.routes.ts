@@ -1,16 +1,17 @@
 import { Router } from 'express';
-import { 
-  createHojaVida, 
-  getHojasVida, 
-  getInventario, 
-  getControlBajas, 
-  registrarContable, 
+import {
+  createHojaVida,
+  getHojasVida,
+  getHojaVidaById,
+  getInventario,
+  getControlBajas,
+  registrarContable,
   patchEstadoHojaVida,
   updateHojaVida,
   buscarPorCodigo,
   getInventarioPorSede,
   ejecutarTraslado
-} from './hojavida.controller'; 
+} from './hojavida.controller';
 import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();
@@ -20,6 +21,7 @@ router.get('/inventario', getInventario);
 router.get('/bajas', getControlBajas); 
 router.get('/inventario-sede', getInventarioPorSede); 
 router.get('/', getHojasVida);
+router.get('/:id', getHojaVidaById);
 router.post('/trasladar', ejecutarTraslado); 
 router.post('/', upload.fields([
   { name: 'foto', maxCount: 1 },

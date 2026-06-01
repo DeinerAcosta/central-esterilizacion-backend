@@ -127,4 +127,25 @@ export class KitsService {
         data: { estado }
     });
   }
+
+  /**
+   * Detalle de un kit (con sus instrumentos completos) para vistas tipo
+   * "Ver detalle" desde otros módulos (Almacenamiento, etc.). Incluye las
+   * relaciones que se renderizan en la vista detalle del módulo Kits.
+   */
+  static async obtenerPorId(id: number) {
+    const kit = await prisma.kit.findUnique({
+      where: { id },
+      include: {
+        especialidad: true,
+        subespecialidad: true,
+        sede: true,
+        hojasDeVida: {
+          include: { marca: true, especialidad: true, subespecialidad: true, tipo: true },
+        },
+      },
+    });
+    if (!kit) return null;
+    return { ...kit, instrumentos: kit.hojasDeVida };
+  }
 }

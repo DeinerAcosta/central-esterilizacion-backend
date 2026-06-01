@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { getKits, createKit, updateKit, toggleEstadoKit } from './kits.controller';
+import { getKits, getKitById, createKit, updateKit, toggleEstadoKit } from './kits.controller';
 
 const router = Router();
 
 router.get('/', getKits);
+router.get('/:id', getKitById);
 router.post('/', createKit);
 router.put('/:id', updateKit);
 router.patch('/:id/estado', toggleEstadoKit);

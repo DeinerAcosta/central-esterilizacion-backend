@@ -37,6 +37,26 @@ export class HojaVidasService {
     return { total, hojas };
   }
 
+  /**
+   * Detalle completo de una hoja de vida (instrumento) por id, con todas
+   * las relaciones que renderiza el modal de detalle.
+   */
+  static async obtenerPorId(id: number) {
+    return await prisma.hojaVidaInstrumento.findUnique({
+      where: { id },
+      include: {
+        especialidad: true,
+        subespecialidad: true,
+        tipo: true,
+        proveedor: true,
+        marca: true,
+        kit: true,
+        sede: true,
+        propietario: { select: { nombre: true, apellido: true } },
+      },
+    });
+  }
+
   static async crear(data: any, filesUrls: any) {
     const esp = await prisma.especialidad.findUnique({ where: { id: data.especialidadId } });
     const sub = await prisma.subespecialidad.findUnique({ where: { id: data.subespecialidadId } });

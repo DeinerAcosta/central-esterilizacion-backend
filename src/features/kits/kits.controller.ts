@@ -66,6 +66,25 @@ export const updateKit = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
+export const getKitById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ msg: 'Id inválido' });
+      return;
+    }
+    const kit = await KitsService.obtenerPorId(id);
+    if (!kit) {
+      res.status(404).json({ msg: 'Kit no encontrado' });
+      return;
+    }
+    res.json({ data: kit });
+  } catch (error) {
+    console.error('Error al obtener kit por id:', error);
+    res.status(500).json({ msg: 'Error al obtener el kit' });
+  }
+};
+
 export const toggleEstadoKit = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
