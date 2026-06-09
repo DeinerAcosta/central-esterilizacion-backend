@@ -54,17 +54,23 @@ export class DashboardService {
       take:   5,
     });
 
+    // Total de usos del período para calcular porcentaje de utilización por kit.
+    const totalUsosKits = topKitsDB.reduce((sum, k) => sum + k._count._all, 0);
+
     const kits = await Promise.all(
       topKitsDB.map(async (k) => {
         const kitInfo = await prisma.kit.findUnique({
           where:   { id: k.kitId as number },
           include: { especialidad: true },
         });
+        const usos = k._count._all;
+        const porcentaje = totalUsosKits > 0 ? Math.round((usos / totalUsosKits) * 100) : 0;
         return {
           esp:    kitInfo?.especialidad?.nombre || 'General',
           codigo: kitInfo?.codigoKit            || `Kit-${k.kitId}`,
-          val:    k._count._all,
-          status: k._count._all > 10 ? 'up' : 'down',
+          val:    usos,
+          porcentaje, // ✨ Nuevo — % de utilización dentro del período seleccionado
+          status: usos > 10 ? 'up' : 'down',
         };
       })
     );
