@@ -126,7 +126,10 @@ export class HistorialTrasladosService {
   }
 
   // ─── DETALLE DE UN TRASLADO (modal "Detalle", solo lectura) ──
-  // Info general del traslado + listado de kits asociados (Código KIT, KIT).
+  // Info general + dos posibles tablas:
+  //  - kits asociados (Código KIT, KIT) — para estado "Recibido"
+  //  - instrumentos con cantidad (Cantidad, Instrumento) — para
+  //    "Pendiente", "En préstamo", "Prórroga", "Vencido" (doc)
   static async obtenerDetalle(trasladoId: number) {
     const t = await prisma.historialTraslado.findUnique({
       where: { id: trasladoId },
@@ -135,11 +138,28 @@ export class HistorialTrasladosService {
         sedeDestino: true,
         kit: { include: { especialidad: true, subespecialidad: true } },
         instrumento: true,
+        instrumentosEstado: {
+          include: { instrumento: { select: { codigo: true, nombre: true } } },
+        },
       },
     });
     if (!t) throw new Error('TRASLADO_NO_ENCONTRADO');
 
     const kits = t.kit ? [{ codigoKit: t.kit.codigoKit, nombre: t.kit.nombre }] : [];
+
+    // Agrupa por instrumento sumando cantidades, para no repetir filas
+    // cuando un mismo instrumento aparece en varias entradas estado.
+    const acum = new Map<number, { codigo: string; nombre: string; cantidad: number }>();
+    for (const ie of t.instrumentosEstado) {
+      const prev = acum.get(ie.instrumentoId);
+      if (prev) prev.cantidad += ie.cantidad;
+      else acum.set(ie.instrumentoId, {
+        codigo: ie.instrumento.codigo,
+        nombre: ie.instrumento.nombre,
+        cantidad: ie.cantidad,
+      });
+    }
+    const instrumentos = Array.from(acum.values());
 
     return {
       id: t.id,
@@ -152,6 +172,7 @@ export class HistorialTrasladosService {
       tipo: t.kit?.tipoSubespecialidad ?? '—',
       estado: derivarEstado(t.estado, t.fechaDevolucion),
       kits,
+      instrumentos,
     };
   }
 
