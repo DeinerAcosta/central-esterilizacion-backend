@@ -24,6 +24,7 @@ import solicitudesInstrumentoRoutes from './features/solicitudesInstrumento/soli
 import historialTrasladosRoutes from './features/historialTraslados/historialTraslados.routes'; // <-- INFORMES: Historial de traslados
 import indicadoresRoutes from './features/indicadores/indicadores.routes'; // <-- INFORMES: Indicadores Biológico / Gas
 import controlTrazabilidadRoutes from './features/controlTrazabilidad/controlTrazabilidad.routes'; // <-- CICLO: Control Trazabilidad Qx
+import entidadesRoutes from './features/entidades/entidades.routes'; // <-- CONFIG: Entidad
 
 const app = express();
 const PORT = 4000;
@@ -66,6 +67,7 @@ app.use('/api/solicitudes-instrumento', solicitudesInstrumentoRoutes);
 app.use('/api/historial-traslados', historialTrasladosRoutes);
 app.use('/api/indicadores', indicadoresRoutes);
 app.use('/api/control-trazabilidad', controlTrazabilidadRoutes);
+app.use('/api/entidades', entidadesRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
     res.json({ msg: 'Servidor Central de Esterilización en línea 🚀' });
