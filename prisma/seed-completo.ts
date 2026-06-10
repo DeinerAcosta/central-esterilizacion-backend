@@ -63,7 +63,8 @@ const TIPOS_EMPAQUE = ['Bolsa mixta papel/polietileno','Contenedor rígido inoxi
 //  - 'Gas' / 'Vapor'               → autoclave (dos tipos).
 const TIPOS_ESTERIL = ['Statim 2000', 'Statim 5000', 'Gas', 'Vapor'];
 const valorBio = (i: number) => (i % 9 === 0 ? '(+)' : '(-)'); // mayoría negativos, alguno positivo
-const TIPOS_DANO    = ['Deterioro por uso','Defectuoso de fábrica','Fractura/Partido','Corrosión','Deformación'];
+// Catálogo de los 3 tipos de daño según doc Tareas Pendientes.
+const TIPOS_DANO    = ['Oxidado', 'Sucio', 'Dañado'];
 
 const DESCS_DANO = [
   'El instrumento presenta deformación en la punta que compromete su funcionalidad quirúrgica.',
