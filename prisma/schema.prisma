@@ -437,13 +437,17 @@ model MovimientoInsumoDetalle {
 
 // Entidad externa (clínica, hospital, IPS) que envía instrumentos a procesar
 model Entidad {
-  id        Int      @id @default(autoincrement())
-  codigo    String   @unique
-  nombre    String   @unique
-  nit       String?
-  contacto  String?
-  estado    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  nombre      String   @unique
+  nit         String?
+  contacto    String?
+  // Campos del doc "Tabla maestras entidad" (Configuración → Entidad).
+  responsable String?
+  ciudad      String?
+  correo      String?
+  estado      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   ingresos IngresoTercero[]
 }
