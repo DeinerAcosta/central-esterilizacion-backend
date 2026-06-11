@@ -5,12 +5,15 @@ const prisma = new PrismaClient();
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 /**
- * Estado a mostrar según el flujo del documento Historial de traslados.
- * Se guarda el estado base (Pendiente / Recibido / En préstamo / Prórroga) y
- * "Vencido" se deriva cuando un traslado "En préstamo" ya pasó su devolución.
+ * Estado a mostrar según el flujo del cliente.
+ * Estados base: Pendiente / Recibido / En préstamo / Prórroga.
+ * "Vencido" se deriva cuando un traslado en "En préstamo" o "Prórroga" ya pasó
+ * su fecha de devolución (en Prórroga: la nueva fecha también puede vencer y
+ * permite solicitar otra prórroga).
  */
 const derivarEstado = (estadoBase: string, fechaDevolucion: Date): string => {
-  if (estadoBase === 'En préstamo' && fechaDevolucion.getTime() < Date.now()) return 'Vencido';
+  const vencido = fechaDevolucion.getTime() < Date.now();
+  if (vencido && (estadoBase === 'En préstamo' || estadoBase === 'Prórroga')) return 'Vencido';
   return estadoBase || 'Pendiente';
 };
 
@@ -272,8 +275,9 @@ export class HistorialTrasladosService {
   }
 
   // ─── PRÓRROGA: actualizar fecha de devolución ───────────
-  // Cambia la fecha de devolución y deja el traslado en "En préstamo".
-  // Usado por estado "Prórroga" (Ver detalle) y "Vencido" (Solicitar prórroga).
+  // Regla del cliente:
+  //   - Desde "Vencido" → al solicitar prórroga el traslado pasa a "Prórroga"
+  //   - Desde "Prórroga" (Ver detalle) → solo se actualiza la fecha, sigue en "Prórroga"
   static async actualizarProrroga(trasladoId: number, fechaDevolucion: string) {
     const traslado = await prisma.historialTraslado.findUnique({ where: { id: trasladoId } });
     if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
@@ -282,7 +286,7 @@ export class HistorialTrasladosService {
       where: { id: trasladoId },
       data: {
         fechaDevolucion: new Date(`${fechaDevolucion}T00:00:00.000Z`),
-        estado: 'En préstamo',
+        estado: 'Prórroga',
       },
     });
 
