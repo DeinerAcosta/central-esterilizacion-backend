@@ -137,7 +137,9 @@ export class HistorialTrasladosService {
         sedeOrigen: true,
         sedeDestino: true,
         kit: { include: { especialidad: true, subespecialidad: true } },
-        instrumento: true,
+        // Cuando el traslado es de instrumento suelto (no kit), tomamos
+        // esp/sub/tipo del instrumento mismo.
+        instrumento: { include: { especialidad: true, subespecialidad: true, tipo: true } },
         instrumentosEstado: {
           include: { instrumento: { select: { codigo: true, nombre: true } } },
         },
@@ -167,9 +169,9 @@ export class HistorialTrasladosService {
       destino: t.sedeDestino.nombre,
       fechaT: fmt(t.fechaTraslado),
       fechaD: fmt(t.fechaDevolucion),
-      esp: t.kit?.especialidad.nombre ?? '—',
-      sub: t.kit?.subespecialidad.nombre ?? '—',
-      tipo: t.kit?.tipoSubespecialidad ?? '—',
+      esp:  t.kit?.especialidad.nombre   ?? t.instrumento?.especialidad?.nombre   ?? '—',
+      sub:  t.kit?.subespecialidad.nombre ?? t.instrumento?.subespecialidad?.nombre ?? '—',
+      tipo: t.kit?.tipoSubespecialidad    ?? t.instrumento?.tipo?.nombre           ?? '—',
       estado: derivarEstado(t.estado, t.fechaDevolucion),
       kits,
       instrumentos,
