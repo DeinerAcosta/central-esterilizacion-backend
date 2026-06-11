@@ -164,6 +164,15 @@ export class HistorialTrasladosService {
         cantidad: ie.cantidad,
       });
     }
+    // Fallback para traslados de instrumento suelto que aún no tienen un
+    // TrasladoInstrumentoEstado creado: mostramos el instrumento directo.
+    if (acum.size === 0 && t.instrumento) {
+      acum.set(t.instrumento.id, {
+        codigo: t.instrumento.codigo,
+        nombre: t.instrumento.nombre,
+        cantidad: 1,
+      });
+    }
     const instrumentos = Array.from(acum.values());
 
     return {
@@ -185,7 +194,7 @@ export class HistorialTrasladosService {
   // Lista los instrumentos del traslado con su estado (Aprobado/Rechazado/
   // Pendiente). Usado por "Ver aprobado" y "Aprobar recibido".
   static async obtenerEstadoInstrumental(trasladoId: number, search?: string) {
-    const traslado = await prisma.historialTraslado.findUnique({
+    let traslado = await prisma.historialTraslado.findUnique({
       where: { id: trasladoId },
       include: {
         kit: true,
@@ -197,6 +206,33 @@ export class HistorialTrasladosService {
       },
     });
     if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
+
+    // Lazy init: si el traslado es de instrumento suelto y aún no tiene
+    // TrasladoInstrumentoEstado, lo creamos con estado "Pendiente" para que
+    // se pueda usar "Aprobar recibido". (Datos antiguos creados antes de
+    // este flujo no se hidrataron al insertar el traslado.)
+    if (traslado.instrumentosEstado.length === 0 && traslado.instrumentoId) {
+      await prisma.trasladoInstrumentoEstado.create({
+        data: {
+          trasladoId: traslado.id,
+          instrumentoId: traslado.instrumentoId,
+          cantidad: 1,
+          estado: 'Pendiente',
+        },
+      });
+      traslado = await prisma.historialTraslado.findUnique({
+        where: { id: trasladoId },
+        include: {
+          kit: true,
+          instrumentosEstado: {
+            include: {
+              instrumento: { include: { especialidad: true, subespecialidad: true, tipo: true } },
+            },
+          },
+        },
+      });
+      if (!traslado) throw new Error('TRASLADO_NO_ENCONTRADO');
+    }
 
     const fechaT = fmt(traslado.fechaTraslado);
     const fechaD = fmt(traslado.fechaDevolucion);
