@@ -30,6 +30,25 @@ const rangoFechas = (fechaDesde?: string, fechaHasta?: string) => {
   return Object.keys(where).length ? where : undefined;
 };
 
+/**
+ * Normaliza el estado base de BD al texto operativo que ve el usuario en
+ * "Control Trazabilidad Qx" (según Figma). Si el valor crudo ya es uno de los
+ * textos canónicos, se devuelve tal cual.
+ */
+const normalizarEstadoOperativo = (estadoBd: string | null | undefined): string => {
+  const s = (estadoBd ?? '').toLowerCase().trim();
+  if (!s) return 'Sin estado';
+  if (s.includes('quir'))                                    return 'En quirófano';
+  if (s.includes('esteriliz') || s.includes('ciclo'))        return 'Esterilización';
+  if (s.includes('préstamo')  || s.includes('prestamo'))     return 'En préstamo';
+  if (s.includes('mantenim'))                                return 'En mantenimiento';
+  if (s.includes('baja')      || s.includes('deshabilit'))   return 'De baja';
+  if (s.includes('habilit')   || s.includes('almacen') ||
+      s.includes('disponible')|| s.includes('p. registrar')) return 'En almacén';
+  // Cualquier otro valor lo dejamos tal cual (capitalizado)
+  return estadoBd as string;
+};
+
 export class ControlTrazabilidadService {
   /** Listado de instrumentos para "Control Trazabilidad Qx". */
   static async listarInstrumentos(f: FiltrosLista) {
@@ -67,7 +86,7 @@ export class ControlTrazabilidadService {
       kit: r.kit?.codigoKit ?? null,
       ubicacion: r.sede?.nombre ?? 'Sin asignar',
       ubicacionId: r.sede?.id ?? null,
-      estado: r.estadoActual,
+      estado: normalizarEstadoOperativo(r.estadoActual),
       especialidad: r.especialidad?.nombre ?? '',
       subespecialidad: r.subespecialidad?.nombre ?? '',
       fecha: r.updatedAt.toISOString().slice(0, 10),
@@ -110,7 +129,7 @@ export class ControlTrazabilidadService {
       kit: r.codigoKit,
       ubicacion: r.sede?.nombre ?? 'Sin asignar',
       ubicacionId: r.sede?.id ?? null,
-      estado: r.estado,
+      estado: normalizarEstadoOperativo(r.estado),
       especialidad: r.especialidad?.nombre ?? '',
       subespecialidad: r.subespecialidad?.nombre ?? '',
       fecha: r.createdAt.toISOString().slice(0, 10),
@@ -133,7 +152,7 @@ export class ControlTrazabilidadService {
       id: r.id,
       codigo: r.codigo,
       nombre: r.nombre,
-      estado: r.estadoActual,
+      estado: normalizarEstadoOperativo(r.estadoActual),
       especialidad: r.especialidad?.nombre ?? '',
       subespecialidad: r.subespecialidad?.nombre ?? '',
       tipo: r.tipo?.nombre ?? '',
@@ -160,7 +179,7 @@ export class ControlTrazabilidadService {
       id: r.id,
       codigo: r.codigoKit,
       nombre: `Kit ${r.codigoKit}`,
-      estado: r.estado,
+      estado: normalizarEstadoOperativo(r.estado),
       especialidad: r.especialidad?.nombre ?? '',
       subespecialidad: r.subespecialidad?.nombre ?? '',
       tipo: r.tipoSubespecialidad ?? '',
