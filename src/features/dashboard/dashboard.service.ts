@@ -4,6 +4,21 @@ const prisma = new PrismaClient();
 
 const REJECTION_COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'];
 
+// Mapeo etapa numérica → nombre que pinta el dashboard.
+const ETAPAS: Array<{ codigo: number; nombre: string }> = [
+  { codigo: 0, nombre: 'Recepción' },
+  { codigo: 1, nombre: 'Lavado' },
+  { codigo: 2, nombre: 'Secado' },
+  { codigo: 3, nombre: 'Sellado' },
+  { codigo: 4, nombre: 'Rotulado' },
+  { codigo: 5, nombre: 'Esterilizado' },
+];
+
+const MES_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sept','Oct','Nov','Dic'];
+
+const minutosEntre = (a: Date, b: Date) =>
+  Math.max(1, Math.round((b.getTime() - a.getTime()) / 60000));
+
 export class DashboardService {
 
   static async getStats(year: number, kitPeriod: string, insumo?: string) {
@@ -54,7 +69,6 @@ export class DashboardService {
       take:   5,
     });
 
-    // Total de usos del período para calcular porcentaje de utilización por kit.
     const totalUsosKits = topKitsDB.reduce((sum, k) => sum + k._count._all, 0);
 
     const kits = await Promise.all(
@@ -69,55 +83,95 @@ export class DashboardService {
           esp:    kitInfo?.especialidad?.nombre || 'General',
           codigo: kitInfo?.codigoKit            || `Kit-${k.kitId}`,
           val:    usos,
-          porcentaje, // ✨ Nuevo — % de utilización dentro del período seleccionado
+          porcentaje,
           status: usos > 10 ? 'up' : 'down',
         };
       })
     );
 
-    // ─── Datos estáticos de proceso ───────────────────────
-    const baseTime = year === 2025 ? 30 : 40;
-    const timeProcess = [
-      { name: 'Recepción',    min: 10, max: 45, avg: baseTime },
-      { name: 'Lavado',       min: 15, max: 35, avg: baseTime - 5 },
-      { name: 'Secado',       min: 20, max: 50, avg: baseTime + 5 },
-      { name: 'Sellado',      min: 10, max: 40, avg: baseTime - 2 },
-      { name: 'Rotulado',     min: 15, max: 45, avg: baseTime + 2 },
-      { name: 'Esterilizado', min: 25, max: 60, avg: baseTime + 15 },
-    ];
+    // ─── Tiempo en proceso por etapa (datos reales) ───────
+    // Para cada ciclo del año tomamos el primer escaneo de cada etapa.
+    // El "tiempo" de la etapa N = minutos entre primer escaneo de N y primero de N+1.
+    // El de Esterilizado (5) = minutos entre su primer escaneo y la última actualización del ciclo.
+    const escaneos = await prisma.escaneoInstrumento.findMany({
+      where: { ciclo: { createdAt: yearFilter } },
+      select: { cicloId: true, etapa: true, createdAt: true },
+      orderBy: [{ cicloId: 'asc' }, { createdAt: 'asc' }],
+    });
 
-    const repetitions = [
-      { name: 'Recepción',    value: year === 2025 ? 12 : 25 },
-      { name: 'Lavado',       value: year === 2025 ? 18 : 30 },
-      { name: 'Secado',       value: year === 2025 ? 45 : 60 },
-      { name: 'Sellado',      value: year === 2025 ?  8 : 15 },
-      { name: 'Rotulado',     value: year === 2025 ? 22 : 40 },
-      { name: 'Esterilizado', value: year === 2025 ?  5 : 10 },
-    ];
+    const primerosPorEtapa = new Map<number, Map<number, Date>>(); // cicloId → etapa → primer Date
+    for (const e of escaneos) {
+      if (!primerosPorEtapa.has(e.cicloId)) primerosPorEtapa.set(e.cicloId, new Map());
+      const m = primerosPorEtapa.get(e.cicloId)!;
+      if (!m.has(e.etapa)) m.set(e.etapa, e.createdAt);
+    }
 
-    const baseConsumo = insumo === 'Gasa' ? 50 : 150;
-    const consumption = [
-      { month: 'Ene',  current: baseConsumo,        previous: baseConsumo + 30 },
-      { month: 'Feb',  current: baseConsumo + 20,   previous: baseConsumo + 20 },
-      { month: 'Mar',  current: baseConsumo + 25,   previous: baseConsumo + 10 },
-      { month: 'Abr',  current: baseConsumo + 10,   previous: baseConsumo + 40 },
-      { month: 'May',  current: baseConsumo + 40,   previous: baseConsumo + 70 },
-      { month: 'Jun',  current: baseConsumo + 65,   previous: baseConsumo + 50 },
-      { month: 'Jul',  current: baseConsumo + 60,   previous: baseConsumo + 20 },
-      { month: 'Ago',  current: baseConsumo + 75,   previous: baseConsumo +  5 },
-      { month: 'Sept', current: baseConsumo + 100,  previous: baseConsumo },
-      { month: 'Oct',  current: baseConsumo + 105,  previous: baseConsumo + 30 },
-      { month: 'Nov',  current: baseConsumo + 45,   previous: baseConsumo + 15 },
-      { month: 'Dic',  current: baseConsumo + 50,   previous: baseConsumo },
-    ];
+    const ciclosUpdated = await prisma.cicloEsterilizacion.findMany({
+      where: { createdAt: yearFilter, id: { in: Array.from(primerosPorEtapa.keys()) } },
+      select: { id: true, updatedAt: true },
+    });
+    const updatedById = new Map(ciclosUpdated.map(c => [c.id, c.updatedAt]));
 
+    // Acumuladores por etapa
+    const acumEtapa: Array<{ tiempos: number[] }> = ETAPAS.map(() => ({ tiempos: [] }));
+    for (const [cicloId, mapa] of primerosPorEtapa.entries()) {
+      for (let i = 0; i < ETAPAS.length; i++) {
+        const inicio = mapa.get(ETAPAS[i].codigo);
+        if (!inicio) continue;
+        const fin = i + 1 < ETAPAS.length
+          ? mapa.get(ETAPAS[i + 1].codigo) ?? updatedById.get(cicloId)
+          : updatedById.get(cicloId);
+        if (fin && fin.getTime() > inicio.getTime()) {
+          acumEtapa[i].tiempos.push(minutosEntre(inicio, fin));
+        }
+      }
+    }
+
+    const timeProcess = ETAPAS.map((e, i) => {
+      const ts = acumEtapa[i].tiempos;
+      const min = ts.length ? Math.min(...ts) : 0;
+      const max = ts.length ? Math.max(...ts) : 0;
+      const avg = ts.length ? Math.round(ts.reduce((a, b) => a + b, 0) / ts.length) : 0;
+      return { name: e.nombre, min, max, avg };
+    });
+
+    // Tiempo total promedio de un ciclo (formato H:MM)
+    const totalMinPromedios = timeProcess.reduce((acc, t) => acc + t.avg, 0);
+    const hh = Math.floor(totalMinPromedios / 60);
+    const mm = totalMinPromedios % 60;
+    const avgTime = `${hh}:${String(mm).padStart(2, '0')}`;
+
+    // ─── Repeticiones por etapa (datos reales) ────────────
+    // Un "rescaneo" del MISMO instrumento en la MISMA etapa del MISMO ciclo
+    // cuenta como repetición. Total repeticiones = totalEscaneos - escaneosUnicos.
+    const repetGrupos = await prisma.escaneoInstrumento.groupBy({
+      by: ['etapa', 'cicloId', 'instrumentoId'],
+      where: { ciclo: { createdAt: yearFilter } },
+      _count: { _all: true },
+    });
+
+    const repetPorEtapa = new Map<number, number>();
+    for (const g of repetGrupos) {
+      if (g._count._all > 1) {
+        repetPorEtapa.set(g.etapa, (repetPorEtapa.get(g.etapa) ?? 0) + (g._count._all - 1));
+      }
+    }
+    const repetitions = ETAPAS.map(e => ({
+      name: e.nombre,
+      value: repetPorEtapa.get(e.codigo) ?? 0,
+    }));
+
+    // ─── Consumo de insumos por mes (datos reales) ────────
+    // Suma de cantidades de MovimientoInsumoDetalle (tipo Consumo) por mes
+    // del año actual ("current") y del año anterior ("previous").
+    const consumption = await this.consumoMensual(year, insumo);
     const consumoPromedio = Math.round(
-      consumption.reduce((acc, curr) => acc + curr.current, 0) / 12
+      consumption.reduce((acc, m) => acc + m.current, 0) / 12
     );
 
     return {
       summary: {
-        avgTime:         '3:10',
+        avgTime,
         totalReportes,
         efectividad,
         totalCiclos,
@@ -134,5 +188,40 @@ export class DashboardService {
       repetitions,
       consumption,
     };
+  }
+
+  /**
+   * Consumo mensual de insumos para los años `year` (current) y `year - 1`
+   * (previous), filtrado opcionalmente por nombre de insumo.
+   */
+  private static async consumoMensual(year: number, insumo?: string) {
+    const inicio = new Date(`${year - 1}-01-01T00:00:00.000Z`);
+    const fin    = new Date(`${year}-12-31T23:59:59.999Z`);
+
+    const detalles = await prisma.movimientoInsumoDetalle.findMany({
+      where: {
+        movimiento: { tipo: 'Consumo', fecha: { gte: inicio, lte: fin } },
+        ...(insumo ? { insumo: { nombre: { contains: insumo } } } : {}),
+      },
+      select: {
+        cantidad: true,
+        movimiento: { select: { fecha: true } },
+      },
+    });
+
+    const matriz = { current: new Array<number>(12).fill(0), previous: new Array<number>(12).fill(0) };
+    for (const d of detalles) {
+      const f = d.movimiento.fecha;
+      const y = f.getUTCFullYear();
+      const m = f.getUTCMonth();
+      if (y === year)         matriz.current[m]  += d.cantidad;
+      else if (y === year - 1) matriz.previous[m] += d.cantidad;
+    }
+
+    return MES_LABELS.map((mes, i) => ({
+      month: mes,
+      current: matriz.current[i],
+      previous: matriz.previous[i],
+    }));
   }
 }
