@@ -568,12 +568,14 @@ async function main() {
 
   // ── 11. ENTIDADES EXTERNAS (5) ────────────────────────────
   console.log('\n🏢 Creando entidades externas...');
+  // Doc "Tabla maestras entidad": cada entidad tiene nombre, NIT, responsable,
+  // ciudad, contacto (tel.) y correo.
   const ENTIDADES_DATA = [
-    { codigo: 'ENT-01', nombre: 'Clínica del Caribe',          nit: '900111222-1', contacto: 'Dra. Patricia Mendoza - 3204567890' },
-    { codigo: 'ENT-02', nombre: 'Hospital Universitario Norte', nit: '900222333-2', contacto: 'Dr. Ricardo Vargas - 3157891234' },
-    { codigo: 'ENT-03', nombre: 'IPS Salud Total',             nit: '900333444-3', contacto: 'Enf. Lucía Castro - 3018765432' },
-    { codigo: 'ENT-04', nombre: 'Centro Médico San Rafael',    nit: '900444555-4', contacto: 'Dr. Felipe Ortiz - 3112345678' },
-    { codigo: 'ENT-05', nombre: 'Clínica Oftálmica Visión',    nit: '900555666-5', contacto: 'Dra. Ana Quintero - 3009876543' },
+    { codigo: 'ENT-01', nombre: 'Clínica del Caribe',           nit: '900111222-1', responsable: 'Dra. Patricia Mendoza', ciudad: 'Barranquilla', contacto: '3204567890', correo: 'patricia.mendoza@clinicadelcaribe.com.co' },
+    { codigo: 'ENT-02', nombre: 'Hospital Universitario Norte', nit: '900222333-2', responsable: 'Dr. Ricardo Vargas',    ciudad: 'Bogotá',       contacto: '3157891234', correo: 'ricardo.vargas@hospitaln.com.co' },
+    { codigo: 'ENT-03', nombre: 'IPS Salud Total',              nit: '900333444-3', responsable: 'Enf. Lucía Castro',     ciudad: 'Cali',         contacto: '3018765432', correo: 'lucia.castro@ipssaludtotal.com.co' },
+    { codigo: 'ENT-04', nombre: 'Centro Médico San Rafael',     nit: '900444555-4', responsable: 'Dr. Felipe Ortiz',      ciudad: 'Medellín',     contacto: '3112345678', correo: 'felipe.ortiz@cmsanrafael.com.co' },
+    { codigo: 'ENT-05', nombre: 'Clínica Oftálmica Visión',     nit: '900555666-5', responsable: 'Dra. Ana Quintero',     ciudad: 'Cartagena',    contacto: '3009876543', correo: 'ana.quintero@oftvision.com.co' },
   ];
   const entidades: Awaited<ReturnType<typeof prisma.entidad.create>>[] = [];
   for (const ed of ENTIDADES_DATA) {
