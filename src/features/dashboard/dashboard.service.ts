@@ -21,10 +21,16 @@ const minutosEntre = (a: Date, b: Date) =>
 
 export class DashboardService {
 
-  static async getStats(year: number, kitPeriod: string, insumo?: string) {
+  static async getStats(year: number, kitPeriod: string, insumo?: string, repeticionesYear?: number) {
     const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
     const endOfYear   = new Date(`${year}-12-31T23:59:59.999Z`);
     const yearFilter  = { gte: startOfYear, lte: endOfYear };
+
+    // Filtro independiente para "Repeticiones por proceso" (card del dashboard)
+    const repYear        = repeticionesYear ?? year;
+    const startRepYear   = new Date(`${repYear}-01-01T00:00:00.000Z`);
+    const endRepYear     = new Date(`${repYear}-12-31T23:59:59.999Z`);
+    const repeticionesFilter = { gte: startRepYear, lte: endRepYear };
 
     // ─── Métricas principales ─────────────────────────────
     const [totalReportes, totalMantenimientos, ciclosExitosos, ciclosFallidos] = await Promise.all([
@@ -146,7 +152,7 @@ export class DashboardService {
     // cuenta como repetición. Total repeticiones = totalEscaneos - escaneosUnicos.
     const repetGrupos = await prisma.escaneoInstrumento.groupBy({
       by: ['etapa', 'cicloId', 'instrumentoId'],
-      where: { ciclo: { createdAt: yearFilter } },
+      where: { ciclo: { createdAt: repeticionesFilter } },
       _count: { _all: true },
     });
 

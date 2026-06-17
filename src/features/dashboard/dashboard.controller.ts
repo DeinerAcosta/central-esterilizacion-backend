@@ -3,11 +3,12 @@ import { DashboardService } from './dashboard.service';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const year      = parseInt(req.query.year as string)      || new Date().getFullYear();
-    const kitPeriod = (req.query.kitPeriod as string)         || 'Año';
-    const insumo    = req.query.insumo as string | undefined;
+    const year             = parseInt(req.query.year as string)              || new Date().getFullYear();
+    const kitPeriod        = (req.query.kitPeriod as string)                  || 'Año';
+    const repeticionesYear = parseInt(req.query.repeticionesYear as string)   || year;
+    const insumo           = req.query.insumo as string | undefined;
 
-    const data = await DashboardService.getStats(year, kitPeriod, insumo);
+    const data = await DashboardService.getStats(year, kitPeriod, insumo, repeticionesYear);
 
     return res.json({ success: true, ...data });
   } catch (error: unknown) {
