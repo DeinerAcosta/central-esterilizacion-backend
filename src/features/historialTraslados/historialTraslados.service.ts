@@ -183,6 +183,9 @@ export class HistorialTrasladosService {
       destino: t.sedeDestino.nombre,
       fechaT: fmt(t.fechaTraslado),
       fechaD: fmt(t.fechaDevolucion),
+      // Horas para el modal de detalle (se quitaron de la grilla principal).
+      horaT: t.fechaTraslado.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      horaD: t.fechaDevolucion.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
       esp:  t.kit?.especialidad.nombre   ?? t.instrumento?.especialidad?.nombre   ?? '—',
       sub:  t.kit?.subespecialidad.nombre ?? t.instrumento?.subespecialidad?.nombre ?? '—',
       tipo: t.kit?.tipoSubespecialidad    ?? t.instrumento?.tipo?.nombre           ?? '—',
