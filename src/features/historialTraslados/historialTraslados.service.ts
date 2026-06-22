@@ -301,12 +301,30 @@ export class HistorialTrasladosService {
       ),
     );
 
-    // Si ningún instrumento queda "Pendiente", el traslado se marca "Recibido".
-    const pendientes = await prisma.trasladoInstrumentoEstado.count({
-      where: { trasladoId, estado: 'Pendiente' },
-    });
+    // Transición de estado del traslado según el resultado de la validación
+    // y el estado origen (HU-TRAS-01):
+    //   · Pendiente + todos Aprobados   → En préstamo
+    //   · Pendiente + algún Rechazado   → Rechazado
+    //   · En recepción / Vencido + todos Aprobados → Recibido
+    //   · En recepción + algún Rechazado → Novedad
+    //   · Vencido + algún Rechazado     → Novedad (la novedad aplica al recibir)
+    const [pendientes, rechazados] = await Promise.all([
+      prisma.trasladoInstrumentoEstado.count({ where: { trasladoId, estado: 'Pendiente' } }),
+      prisma.trasladoInstrumentoEstado.count({ where: { trasladoId, estado: 'Rechazado' } }),
+    ]);
+
     if (pendientes === 0) {
-      await prisma.historialTraslado.update({ where: { id: trasladoId }, data: { estado: 'Recibido' } });
+      const estadoOrigen = traslado.estado;
+      let nuevoEstado: string | null = null;
+      if (estadoOrigen === 'Pendiente') {
+        nuevoEstado = rechazados > 0 ? 'Rechazado' : 'En préstamo';
+      } else if (estadoOrigen === 'En recepción' || estadoOrigen === 'Vencido' || estadoOrigen === 'En préstamo') {
+        nuevoEstado = rechazados > 0 ? 'Novedad' : 'Recibido';
+      } else {
+        // Backward-compat: cualquier otro caso → Recibido (comportamiento previo)
+        nuevoEstado = 'Recibido';
+      }
+      await prisma.historialTraslado.update({ where: { id: trasladoId }, data: { estado: nuevoEstado } });
     }
 
     return this.obtenerEstadoInstrumental(trasladoId);
