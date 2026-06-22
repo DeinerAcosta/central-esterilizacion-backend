@@ -122,6 +122,39 @@ export const historialTrasladosController = {
     }
   },
 
+  ejecutarTransicion: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = idParamSchema.parse(req.params);
+      const bodySchema = z.object({
+        accion: z.enum([
+          'aprobar-solicitud', 'rechazar-solicitud',
+          'solicitar-prorroga', 'aprobar-prorroga', 'rechazar-prorroga',
+          'registrar-devolucion', 'rechazar-recepcion',
+        ]),
+        fechaDevolucion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional(),
+      });
+      const { accion, fechaDevolucion } = bodySchema.parse(req.body);
+      const data = await HistorialTrasladosService.ejecutarTransicion(id, accion, { fechaDevolucion });
+      res.json({ success: true, data });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ success: false, message: error.issues[0].message });
+        return;
+      }
+      const msg = error instanceof Error ? error.message : 'Error interno';
+      if (msg === 'TRASLADO_NO_ENCONTRADO') {
+        res.status(404).json({ success: false, message: 'Traslado no encontrado' });
+        return;
+      }
+      if (msg.startsWith('TRANSICION_INVALIDA') || msg.startsWith('FECHA_REQUERIDA')) {
+        res.status(400).json({ success: false, message: msg });
+        return;
+      }
+      console.error('Error en transición:', error);
+      res.status(500).json({ success: false, message: 'Error interno' });
+    }
+  },
+
   obtenerContenidoKit: async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = idParamSchema.parse(req.params);

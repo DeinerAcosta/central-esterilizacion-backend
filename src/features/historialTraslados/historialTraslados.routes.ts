@@ -10,5 +10,6 @@ router.get('/:id/detalle', historialTrasladosController.obtenerDetalle);
 router.get('/:id/instrumental', historialTrasladosController.obtenerEstadoInstrumental);
 router.put('/:id/instrumental', historialTrasladosController.guardarAprobacionInstrumental);
 router.put('/:id/prorroga', historialTrasladosController.actualizarProrroga);
+router.post('/:id/transicion', historialTrasladosController.ejecutarTransicion);
 
 export default router;
