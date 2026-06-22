@@ -427,9 +427,18 @@ export class HistorialTrasladosService {
 
       case 'solicitar-prorroga':
         requerir(['En préstamo', 'Vencido']);
+        // El solicitante puede sugerir una fecha de devolución nueva. La
+        // persistimos en fechaDevolucion para que el admin la vea como
+        // punto de partida al "Aprobar prórroga". Si no sugiere fecha, la
+        // existente se mantiene.
         await prisma.historialTraslado.update({
           where: { id: trasladoId },
-          data: { estado: 'Prórroga' },
+          data: {
+            estado: 'Prórroga',
+            ...(opciones.fechaDevolucion
+              ? { fechaDevolucion: new Date(`${opciones.fechaDevolucion}T00:00:00.000Z`) }
+              : {}),
+          },
         });
         break;
 
