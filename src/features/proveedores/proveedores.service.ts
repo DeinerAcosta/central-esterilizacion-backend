@@ -30,11 +30,13 @@ export class ProveedoresService {
 
   static async crear(data: any) {
     let codigoAsignado = data.codigo;
-    
+
     if (!codigoAsignado || String(codigoAsignado).trim() === '') {
-      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      // Código consecutivo continuando el formato existente (PROV-01, PROV-02…).
+      // Los proveedores usan toggle de estado (no se borran), por lo que el
+      // conteo es estable y no genera choques. El campo codigo es @unique.
       const count = await prisma.proveedor.count();
-      codigoAsignado = `PROV-${count + 1}-${randomPart}`;
+      codigoAsignado = `PROV-${String(count + 1).padStart(2, '0')}`;
     }
 
     return await prisma.proveedor.create({
