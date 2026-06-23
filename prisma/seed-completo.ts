@@ -132,13 +132,14 @@ const MARCAS_DATA = [
   { codigo: 'MARC-08', nombre: 'Roboz Surgical' },
 ];
 
+// Tipo según Excel TM Proveedores: solo "Compras" o "Mantenimientos".
 const PROV_DATA = [
-  { codigo: 'PROV-01', nombre: 'Distribuidora Médica Andina',      nit: '900123456-1', ciudad: 'Bogotá',        pais: 'Colombia',  tipo: 'Nacional' },
-  { codigo: 'PROV-02', nombre: 'Importaciones Quirúrgicas Caribe', nit: '900234567-2', ciudad: 'Barranquilla',  pais: 'Colombia',  tipo: 'Nacional' },
-  { codigo: 'PROV-03', nombre: 'Suministros Hospitalarios del Pacífico', nit: '900345678-3', ciudad: 'Cali', pais: 'Colombia', tipo: 'Nacional' },
-  { codigo: 'PROV-04', nombre: 'Tecnomedical Colombia',            nit: '900456789-4', ciudad: 'Medellín',      pais: 'Colombia',  tipo: 'Nacional' },
-  { codigo: 'PROV-05', nombre: 'Instrumental Quirúrgico Nacional', nit: '900567890-5', ciudad: 'Bogotá',        pais: 'Colombia',  tipo: 'Nacional' },
-  { codigo: 'PROV-06', nombre: 'Equipos y Dispositivos Médicos',   nit: '900678901-6', ciudad: 'Ciudad de México', pais: 'México', tipo: 'Internacional' },
+  { codigo: 'PROV-01', nombre: 'Distribuidora Médica Andina',      nit: '900123456-1', ciudad: 'Bogotá',        pais: 'Colombia',  tipo: 'Compras' },
+  { codigo: 'PROV-02', nombre: 'Importaciones Quirúrgicas Caribe', nit: '900234567-2', ciudad: 'Barranquilla',  pais: 'Colombia',  tipo: 'Compras' },
+  { codigo: 'PROV-03', nombre: 'Suministros Hospitalarios del Pacífico', nit: '900345678-3', ciudad: 'Cali', pais: 'Colombia', tipo: 'Compras' },
+  { codigo: 'PROV-04', nombre: 'Tecnomedical Colombia',            nit: '900456789-4', ciudad: 'Medellín',      pais: 'Colombia',  tipo: 'Mantenimientos' },
+  { codigo: 'PROV-05', nombre: 'Instrumental Quirúrgico Nacional', nit: '900567890-5', ciudad: 'Bogotá',        pais: 'Colombia',  tipo: 'Compras' },
+  { codigo: 'PROV-06', nombre: 'Equipos y Dispositivos Médicos',   nit: '900678901-6', ciudad: 'Ciudad de México', pais: 'México', tipo: 'Mantenimientos' },
 ];
 
 const SEDE_DATA = [
