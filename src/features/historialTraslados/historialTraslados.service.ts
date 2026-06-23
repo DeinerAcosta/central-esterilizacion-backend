@@ -459,17 +459,13 @@ export class HistorialTrasladosService {
 
       case 'rechazar-prorroga':
         requerir(['Prórroga']);
-        // Tras rechazar la prórroga, queda en Vencido sin opción de volver
-        // a solicitarla (RN-07). Marcamos la fecha de devolución como pasada
-        // si aún no lo está, para que derive a Vencido sin ambigüedad.
+        // Tras rechazar la prórroga, queda en Vencido directamente (sin
+        // depender de fechaDevolucion). El doc HU-TRAS-01 Escenario 7 lo
+        // establece así. Ya no se puede solicitar prórroga (RN-07).
         await prisma.historialTraslado.update({
           where: { id: trasladoId },
-          data: { estado: 'En préstamo' },
+          data: { estado: 'Vencido' },
         });
-        // Re-leer y forzar Vencido si la fecha aún no se cumple es complejo;
-        // dejamos que derivarEstado lo muestre como En préstamo o Vencido
-        // según la fechaDevolucion guardada. El admin sabe que ya no se
-        // puede prorrogar.
         break;
 
       case 'registrar-devolucion':
