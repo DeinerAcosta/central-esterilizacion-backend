@@ -17,6 +17,32 @@ const derivarEstado = (estadoBase: string, fechaDevolucion: Date): string => {
   return estadoBase || 'Pendiente';
 };
 
+/**
+ * Prioridad de cada estado para el ordenamiento de la grilla.
+ * Primero los que requieren acción inmediata, después los en curso, y al
+ * final los cerrados. Dentro de cada estado se ordena por fechaTraslado
+ * descendente (más recientes primero).
+ */
+const PRIORIDAD_ESTADO: Record<string, number> = {
+  'Vencido':       1, // urgente
+  'En recepción':  2, // espera validación admin
+  'Prórroga':      3, // espera decisión admin
+  'Pendiente':     4, // espera aprobación admin
+  'En préstamo':   5, // en curso
+  'Novedad':       6, // requiere gestión de novedad
+  'Recibido':      7, // cerrado OK
+  'Rechazado':     8, // cerrado, no hubo traslado
+};
+
+const ordenarPorPrioridad = <T extends { estado: string; fechaT: string }>(filas: T[]): T[] =>
+  [...filas].sort((a, b) => {
+    const pa = PRIORIDAD_ESTADO[a.estado] ?? 99;
+    const pb = PRIORIDAD_ESTADO[b.estado] ?? 99;
+    if (pa !== pb) return pa - pb;
+    // Misma prioridad → más reciente primero
+    return b.fechaT.localeCompare(a.fechaT);
+  });
+
 interface ListarParams {
   page: number;
   limit: number;
@@ -85,7 +111,9 @@ export class HistorialTrasladosService {
       estado: derivarEstado(t.estado, t.fechaDevolucion),
     }));
 
-    return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
+    // Orden por prioridad de estado (urgentes primero) + fecha desc
+    const ordenados = ordenarPorPrioridad(data);
+    return { total, data: ordenados, totalPages: Math.ceil(total / limit), currentPage: page };
   }
 
   // ─── TRASLADOS DE INSTRUMENTOS ──────────────────────────
@@ -127,7 +155,9 @@ export class HistorialTrasladosService {
       estado: derivarEstado(t.estado, t.fechaDevolucion),
     }));
 
-    return { total, data, totalPages: Math.ceil(total / limit), currentPage: page };
+    // Orden por prioridad de estado (urgentes primero) + fecha desc
+    const ordenados = ordenarPorPrioridad(data);
+    return { total, data: ordenados, totalPages: Math.ceil(total / limit), currentPage: page };
   }
 
   // ─── DETALLE DE UN TRASLADO (modal "Detalle", solo lectura) ──
