@@ -7,12 +7,14 @@ export class SubespecialidadesService {
     return await prisma.especialidad.findMany({ where: { estado: true } });
   }
 
-  static async obtenerTodas(page: number, limit: number, search: string, estadoFiltro?: string) {
+  static async obtenerTodas(page: number, limit: number, search: string, estadoFiltro?: string, especialidadId?: number) {
     const skip = (page - 1) * limit;
     const whereClause: any = { nombre: { contains: search } };
-    
+
     if (estadoFiltro === 'true') whereClause.estado = true;
     if (estadoFiltro === 'false') whereClause.estado = false;
+    // Filtro para cascada Especialidad -> Subespecialidad (usado por Kit, Tipo de subespecialidad)
+    if (especialidadId) whereClause.especialidadId = especialidadId;
 
     const [total, subespecialidades] = await Promise.all([
       prisma.subespecialidad.count({ where: whereClause }),

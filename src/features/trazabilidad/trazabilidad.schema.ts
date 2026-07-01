@@ -7,6 +7,9 @@ export const cicloIdSchema = z.object({
 export const aprobarAsignacionSchema = z.object({
   instrumentos: z.array(z.object({
     id: z.coerce.number().min(1),
-    estado: z.string().min(1)
+    estado: z.string().min(1),
+    // Soporte del rechazo (opcionales; se persisten como Reporte de daño)
+    tipoDano: z.string().optional(),
+    descripcion: z.string().optional()
   })).min(1, "Debe enviar al menos un instrumento para aprobar")
 });
