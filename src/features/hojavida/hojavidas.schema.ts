@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const createHojaVidaSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido"),
   especialidadId: z.coerce.number().min(1),
-  subespecialidadId: z.coerce.number().min(1),
+  subespecialidadId: z.coerce.number().optional().nullable(),
   tipoId: z.coerce.number().optional().nullable(),
   proveedorId: z.coerce.number().min(1),
   fabricante: z.string().optional().nullable(),

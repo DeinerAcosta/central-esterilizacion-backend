@@ -364,8 +364,8 @@ export class TercerosService {
       codigo: i.codigo,
       nombre: i.nombre,
       especialidad: i.especialidad.nombre,
-      subespecialidad: i.subespecialidad.nombre,
-      tipo: i.tipo.nombre,
+      subespecialidad: i.subespecialidad?.nombre ?? '',
+      tipo: i.tipo?.nombre ?? '',
       kit: i.kit?.codigoKit ?? '-',
     }));
 

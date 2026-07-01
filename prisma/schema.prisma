@@ -217,10 +217,10 @@ model HojaVidaInstrumento {
   codigo                  String              @unique
   especialidadId          Int
   especialidad            Especialidad        @relation(fields: [especialidadId], references: [id])
-  subespecialidadId       Int
-  subespecialidad         Subespecialidad     @relation(fields: [subespecialidadId], references: [id])
-  tipoId                  Int
-  tipo                    TipoSubespecialidad @relation(fields: [tipoId], references: [id])
+  subespecialidadId       Int?
+  subespecialidad         Subespecialidad?     @relation(fields: [subespecialidadId], references: [id])
+  tipoId                  Int?
+  tipo                    TipoSubespecialidad? @relation(fields: [tipoId], references: [id])
   proveedorId             Int
   proveedor               Proveedor           @relation(fields: [proveedorId], references: [id])
   kitId                   Int?

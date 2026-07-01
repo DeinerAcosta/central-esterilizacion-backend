@@ -59,13 +59,14 @@ export class HojaVidasService {
 
   static async crear(data: any, filesUrls: any) {
     const esp = await prisma.especialidad.findUnique({ where: { id: data.especialidadId } });
-    const sub = await prisma.subespecialidad.findUnique({ where: { id: data.subespecialidadId } });
+    // Subespecialidad y tipo son OPCIONALES en la hoja de vida.
+    const sub = data.subespecialidadId ? await prisma.subespecialidad.findUnique({ where: { id: data.subespecialidadId } }) : null;
     const tipo = data.tipoId ? await prisma.tipoSubespecialidad.findUnique({ where: { id: data.tipoId } }) : null;
 
-    if (!esp || !sub) throw new Error("ESPECIALIDAD_INVALIDA");
+    if (!esp) throw new Error("ESPECIALIDAD_INVALIDA");
 
     const pEsp = esp.nombre.substring(0, 2).toUpperCase();
-    const pSub = sub.nombre.substring(0, 2).toUpperCase();
+    const pSub = sub ? sub.nombre.substring(0, 2).toUpperCase() : '--';
     const pTip = tipo ? tipo.nombre.substring(0, 2).toUpperCase() : '--';
     const prefijo = `${pEsp}${pSub}${pTip}`;
     
@@ -76,7 +77,8 @@ export class HojaVidasService {
       data: {
         ...data,
         codigo: codigoGenerado,
-        tipoId: data.tipoId || 0,
+        subespecialidadId: data.subespecialidadId || null,
+        tipoId: data.tipoId || null,
         materialOtro: data.material === 'Otros' ? data.materialOtro : null,
         estadoActual: "P. registrar",
         cicloEsterilizacion: 0,
