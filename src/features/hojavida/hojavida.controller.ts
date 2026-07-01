@@ -9,7 +9,9 @@ import {
 export const getHojasVida = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = 10;
+    // Respeta ?limit= (lo usa p.ej. el panel de crear Kit con limit=1000);
+    // por defecto 10 para la grilla paginada. Tope de seguridad 2000.
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 2000);
     const search = req.query.search as string || '';
 
     const { total, hojas } = await HojaVidasService.obtenerTodas(page, limit, search, req.query);
