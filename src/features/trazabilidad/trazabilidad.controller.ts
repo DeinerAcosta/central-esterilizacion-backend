@@ -70,7 +70,16 @@ export const trazabilidadController = {
       }
 
       const dataValidada = aprobarAsignacionSchema.parse(bodyParseado);
-      await TrazabilidadService.aprobarAsignacion(cicloId, dataValidada.instrumentos);
+
+      // Mapear las evidencias adjuntas (campo "evidencia_<idInstrumento>") a su URL pública.
+      const archivos = (req.files as Array<{ fieldname: string; filename: string }> | undefined) ?? [];
+      const evidencias: Record<number, string> = {};
+      for (const f of archivos) {
+        const m = /^evidencia_(\d+)$/.exec(f.fieldname);
+        if (m) evidencias[Number(m[1])] = `/uploads/${f.filename}`;
+      }
+
+      await TrazabilidadService.aprobarAsignacion(cicloId, dataValidada.instrumentos, evidencias);
       res.json({ success: true, message: 'Aprobación guardada correctamente' });
 
     } catch (error) {

@@ -4,8 +4,9 @@ import { trazabilidadController } from './trazabilidad.controller';
 
 const router = Router();
 
-// ✅ multer en memoria — parsea el FormData cuando hay evidencias adjuntas
-const upload = multer({ storage: multer.memoryStorage() });
+// ✅ multer a disco (uploads/) — parsea el FormData y persiste las evidencias
+// de rechazo con un filename accesible vía /uploads/<filename> (igual que Reportes).
+const upload = multer({ dest: 'uploads/' });
 
 router.get('/',                         trazabilidadController.getTrazabilidad);
 router.get('/:cicloId/instrumentos',    trazabilidadController.getInstrumentosAsignacion);

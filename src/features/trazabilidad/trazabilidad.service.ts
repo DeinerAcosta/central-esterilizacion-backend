@@ -75,10 +75,15 @@ export class TrazabilidadService {
     }));
   }
 
-  static async aprobarAsignacion(cicloId: number, instrumentos: any[]) {
-    return await prisma.$transaction(async (tx) => {
+  static async aprobarAsignacion(
+    cicloId: number,
+    instrumentos: Array<{ id: number | string; estado: string; tipoDano?: string; descripcion?: string }>,
+    evidencias: Record<number, string> = {}
+  ) {
+    // 1. Ruta crítica (transacción): estado de cada instrumento + estado del ciclo.
+    await prisma.$transaction(async (tx) => {
       for (const inst of instrumentos) {
-        const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';        
+        const nuevoEstado = inst.estado === 'aprobado' ? 'Habilitado' : 'Deshabilitado';
         await tx.hojaVidaInstrumento.update({
           where: { id: Number(inst.id) },
           data: { estadoActual: nuevoEstado }
@@ -89,6 +94,55 @@ export class TrazabilidadService {
         data: { estadoGlobal: 'Entregado' }
       });
     });
+
+    // 2. Best-effort (fuera de la transacción): por cada instrumento rechazado se
+    //    crea un Reporte de daño con su tipo de daño, descripción y evidencia. Un
+    //    fallo aquí NO revierte la aprobación ya confirmada.
+    const rechazados = instrumentos.filter((i) => i.estado !== 'aprobado');
+    if (rechazados.length === 0) return;
+
+    try {
+      const ciclo = await prisma.cicloEsterilizacion.findUnique({
+        where: { id: cicloId },
+        select: { responsableActualId: true }
+      });
+      const responsableCiclo = ciclo?.responsableActualId ?? null;
+
+      let correlativo = await prisma.reporte.count();
+      for (const inst of rechazados) {
+        correlativo += 1;
+        const codigo = `REP-${String(correlativo).padStart(4, '0')}`;
+        try {
+          // Atribuir el reporte al responsable del ciclo o, en su defecto, al
+          // propietario del instrumento (campo obligatorio de la hoja de vida).
+          let reportadoPorId = responsableCiclo;
+          if (!reportadoPorId) {
+            const instr = await prisma.hojaVidaInstrumento.findUnique({
+              where: { id: Number(inst.id) },
+              select: { propietarioId: true }
+            });
+            reportadoPorId = instr?.propietarioId ?? null;
+          }
+          if (!reportadoPorId) continue; // no hay a quién atribuir el reporte
+
+          await prisma.reporte.create({
+            data: {
+              codigo,
+              instrumentoId:    Number(inst.id),
+              tipoDano:         inst.tipoDano || 'Sin especificar',
+              descripcionDano:  inst.descripcion || null,
+              evidenciaFotoUrl: evidencias[Number(inst.id)] || null,
+              reportadoPorId,
+              estado: 'Pendiente'
+            }
+          });
+        } catch (e) {
+          console.error(`No se pudo crear el reporte de daño del instrumento ${inst.id}:`, e);
+        }
+      }
+    } catch (e) {
+      console.error('Error registrando reportes de daño desde trazabilidad:', e);
+    }
   }
 
   static async obtenerDetallesCiclo(cicloId: number) {

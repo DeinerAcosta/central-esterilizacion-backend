@@ -15,11 +15,15 @@ export const getListasSoporte = async (req: Request, res: Response) => {
 export const getSubespecialidades = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = 10;
     const search = req.query.search as string || '';
     const estadoFiltro = req.query.estado as string;
+    const especialidadIdRaw = req.query.especialidadId as string | undefined;
+    const especialidadId = especialidadIdRaw ? Number(especialidadIdRaw) : undefined;
+    // En modo cascada (por especialidad) traemos todas las subespecialidades de esa
+    // especialidad; en el listado normal se mantiene la paginación de 10.
+    const limit = especialidadId ? 500 : 10;
 
-    const { total, subespecialidades } = await SubespecialidadesService.obtenerTodas(page, limit, search, estadoFiltro);
+    const { total, subespecialidades } = await SubespecialidadesService.obtenerTodas(page, limit, search, estadoFiltro, especialidadId);
 
     res.json({
       data: subespecialidades,
