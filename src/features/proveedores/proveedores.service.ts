@@ -29,6 +29,10 @@ export class ProveedoresService {
   }
 
   static async crear(data: any) {
+    // Regla de negocio: no se permiten proveedores con nombre duplicado.
+    const dup = await prisma.proveedor.findFirst({ where: { nombre: String(data.nombre) } });
+    if (dup) throw new Error("NOMBRE_DUPLICADO");
+
     let codigoAsignado = data.codigo;
 
     if (!codigoAsignado || String(codigoAsignado).trim() === '') {
@@ -52,6 +56,9 @@ export class ProveedoresService {
   }
 
   static async actualizar(id: number, data: any) {
+    const dup = await prisma.proveedor.findFirst({ where: { nombre: String(data.nombre), id: { not: id } } });
+    if (dup) throw new Error("NOMBRE_DUPLICADO");
+
     return await prisma.proveedor.update({
       where: { id },
       data: {

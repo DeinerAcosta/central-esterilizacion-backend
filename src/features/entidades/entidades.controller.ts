@@ -56,6 +56,10 @@ export const crear = async (req: Request, res: Response): Promise<void> => {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const err = e as any;
+    if (err?.message === 'NIT_DUPLICADO') {
+      res.status(400).json({ msg: 'Ya existe una entidad con ese NIT' });
+      return;
+    }
     if (err?.code === 'P2002') {
       res.status(400).json({ msg: 'Ya existe una entidad con ese nombre' });
       return;
@@ -82,6 +86,12 @@ export const actualizar = async (req: Request, res: Response): Promise<void> => 
   } catch (e) {
     if (e instanceof z.ZodError) {
       res.status(400).json({ msg: e.issues[0].message });
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const err = e as any;
+    if (err?.message === 'NIT_DUPLICADO') {
+      res.status(400).json({ msg: 'Ya existe una entidad con ese NIT' });
       return;
     }
     console.error('entidades/actualizar:', e);

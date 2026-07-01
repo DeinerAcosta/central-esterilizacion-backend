@@ -36,11 +36,15 @@ export const createTipoSub = async (req: Request, res: Response): Promise<void> 
   try {
     const dataValidada = tipoSubespecialidadSchema.parse(req.body);
     const nuevo = await TipoSubespecialidadesService.crear(dataValidada.nombre, dataValidada.subespecialidadId);
-    
+
     res.status(201).json({ msg: "Tipo de subespecialidad creado correctamente", data: nuevo });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
+    if (error.message === 'DUPLICADO') {
+      res.status(400).json({ msg: "Ya existe un tipo con ese nombre en la subespecialidad seleccionada" });
       return;
     }
     res.status(500).json({ msg: "Error al crear el registro" });
@@ -57,6 +61,10 @@ export const updateTipoSub = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
+    if (error.message === 'DUPLICADO') {
+      res.status(400).json({ msg: "Ya existe un tipo con ese nombre en la subespecialidad seleccionada" });
       return;
     }
     res.status(500).json({ msg: "Error al actualizar" });
