@@ -36,6 +36,10 @@ export class TipoSubespecialidadesService {
   }
 
   static async crear(nombre: string, subespecialidadId: number) {
+    // Regla: no se permiten tipos duplicados dentro de la misma subespecialidad.
+    const dup = await prisma.tipoSubespecialidad.findFirst({ where: { nombre, subespecialidadId } });
+    if (dup) throw new Error("DUPLICADO");
+
     const last = await prisma.tipoSubespecialidad.findFirst({ orderBy: { id: 'desc' } });
     const nextNum = last ? last.id + 1 : 1;
     const codigoGenerado = `TSUB-${String(nextNum).padStart(3, '0')}`;
@@ -46,6 +50,9 @@ export class TipoSubespecialidadesService {
   }
 
   static async actualizar(id: number, nombre: string, subespecialidadId: number) {
+    const dup = await prisma.tipoSubespecialidad.findFirst({ where: { nombre, subespecialidadId, id: { not: id } } });
+    if (dup) throw new Error("DUPLICADO");
+
     return await prisma.tipoSubespecialidad.update({
       where: { id },
       data: { nombre, subespecialidadId }

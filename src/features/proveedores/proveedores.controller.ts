@@ -40,6 +40,10 @@ export const createProveedor = async (req: Request, res: Response): Promise<void
       res.status(400).json({ msg: error.issues[0].message });
       return;
     }
+    if (error.message === 'NOMBRE_DUPLICADO') {
+      res.status(400).json({ msg: "Ya existe un proveedor con ese nombre" });
+      return;
+    }
     if (error.code === 'P2002') {
       res.status(400).json({ msg: "El NIT o el código del proveedor ya existe" });
       return;
@@ -59,6 +63,10 @@ export const updateProveedor = async (req: Request, res: Response): Promise<void
     console.error("❌ ERROR AL ACTUALIZAR PROVEEDOR:", error);
     if (error instanceof z.ZodError) {
       res.status(400).json({ msg: error.issues[0].message });
+      return;
+    }
+    if (error.message === 'NOMBRE_DUPLICADO') {
+      res.status(400).json({ msg: "Ya existe un proveedor con ese nombre" });
       return;
     }
     if (error.code === 'P2002') {

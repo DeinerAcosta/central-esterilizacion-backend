@@ -46,12 +46,21 @@ export class EntidadesService {
   }
 
   static async crear(data: EntidadInput) {
+    // Regla de negocio: el NIT de la entidad debe ser único.
+    if (data.nit) {
+      const dup = await prisma.entidad.findFirst({ where: { nit: data.nit } });
+      if (dup) throw new Error("NIT_DUPLICADO");
+    }
     const count = await prisma.entidad.count();
     const codigo = `ENT-${String(count + 1).padStart(3, '0')}`;
     return prisma.entidad.create({ data: { codigo, ...data } });
   }
 
   static async actualizar(id: number, data: EntidadInput) {
+    if (data.nit) {
+      const dup = await prisma.entidad.findFirst({ where: { nit: data.nit, id: { not: id } } });
+      if (dup) throw new Error("NIT_DUPLICADO");
+    }
     return prisma.entidad.update({ where: { id }, data });
   }
 

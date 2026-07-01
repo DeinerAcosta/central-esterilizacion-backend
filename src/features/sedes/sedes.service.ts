@@ -24,8 +24,13 @@ export class SedesService {
   }
 
   static async crear(data: any) {
+    // Código consecutivo SED-01, SED-02… (las sedes usan toggle de estado, no se
+    // borran, por lo que el conteo es estable). Campo codigo es @unique.
+    const count = await prisma.sede.count();
+    const codigo = `SED-${String(count + 1).padStart(2, '0')}`;
     return await prisma.sede.create({
       data: {
+        codigo,
         nombre: data.nombre,
         pais: data.pais,
         ciudad: data.ciudad,
